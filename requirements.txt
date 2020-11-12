@@ -1,0 +1,6 @@
+google-cloud-bigquery==2.3.1
+Flask==1.1.2
+flask-wtf
+pandas-gbq
+pandas
+pyarrow
