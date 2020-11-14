@@ -1,18 +1,3 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# [START gae_python38_bigquery]
 import concurrent.futures
 
 import flask
@@ -20,9 +5,8 @@ from google.cloud import bigquery
 
 
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
-import datetime
 import pandas as pd
 import requests
 
@@ -70,13 +54,6 @@ def price_archidekt(url):
             'free_cards' : (historical['price'] == 0).sum()
             }
 
-def example_prices():
-    prices = []
-    for id in [632823,858847,875830,899287,626928,754166,623693]:
-        prices.append(price_archidekt("https://archidekt.com/api/decks/{}/".format(id)))
-    return pd.DataFrame(prices)
-
-
 app = flask.Flask(__name__)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
 bigquery_client = bigquery.Client()
@@ -110,7 +87,7 @@ def main():
 
     print('BQ: deck_ids get')
     deck_ids = pd.read_gbq("""
-    SELECT * FROM `nifty-beast-realm.magic.deck_ids` LIMIT 1000
+    SELECT * FROM `nifty-beast-realm.magic.deck_ids` LIMIT 1
     """,project_id="nifty-beast-realm")
     prices = []
     for id in deck_ids['id'].values:
@@ -119,30 +96,6 @@ def main():
     df = pd.DataFrame(prices).sort_values(by='deck_price',ascending=False)
     return flask.render_template("query_result.html", results=df.values,form=form)
 
-@app.route("/results")
-def results():
-    project_id = flask.request.args.get("project_id")
-    job_id = flask.request.args.get("job_id")
-    location = flask.request.args.get("location")
-
-    query_job = bigquery_client.get_job(
-        job_id,
-        project=project_id,
-        location=location,
-    )
-
-    try:
-        # Set a timeout because queries could take longer than one minute.
-        results = query_job.result(timeout=30)
-    except concurrent.futures.TimeoutError:
-        return flask.render_template("timeout.html", job_id=query_job.job_id)
-
-    return flask.render_template("query_result.html", results=results)
-
 
 if __name__ == "__main__":
-    # This is used when running locally only. When deploying to Google App
-    # Engine, a webserver process such as Gunicorn will serve the app. This
-    # can be configured by adding an `entrypoint` to app.yaml.
     app.run(host="127.0.0.1", port=8080, debug=True)
-# [END gae_python38_bigquery]
