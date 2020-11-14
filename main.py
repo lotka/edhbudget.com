@@ -9,10 +9,13 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 import pandas as pd
 import requests
-
+from flask_bootstrap import Bootstrap
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
     submit = SubmitField('Submit')
+
+class UpdateForm(FlaskForm):
+    submit = SubmitField('Update Prices')
 
 
 import firebase_admin
@@ -64,30 +67,20 @@ def price_archidekt(url):
             'commander_price' : round(historical['price'][historical.name == commander].sum(),2),
             'deck_price' : round(historical['price'][historical.name != commander].sum(),2),
             'cards' : len(historical),
-            'free_cards' : (historical['price'] == 0).sum()
+            'free_cards' : (historical['price'] == 0).sum(),
+            'id' : data['id'],
             }
 
 app = flask.Flask(__name__)
+bootstrap = Bootstrap(app)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
 bigquery_client = bigquery.Client()
 
-# @app.route('/submit', methods=['GET', 'POST'])
-# def login():
-#     form = SubmitForm()
-#     if form.validate_on_submit():
-#         print("wtf!?")
-#         archidekt_id = form.url.data.split('/')[-1].split('#')[0]
-#         # new_deck = price_archidekt("https://archidekt.com/api/decks/{}/".format(archidekt_id))
-#         print('BQ: deck_ids post')
-#         doc_ref = db.collection(u'deck-ids').document(archidekt_id)
-#         doc_ref.set({
-#             u'modified': str(pd.datetime.today()),
-#             u'data': {'complex': 4.2},
-#         })
-#         pd.DataFrame([{'id' : archidekt_id}]).to_gbq('magic.deck_ids',project_id='nifty-beast-realm',if_exists='append')
-#         return flask.redirect(flask.url_for('main'))
-#     return flask.render_template('submit.html',  title='Sign In', form=form)
 
+@app.route('/test', methods=['POST'])
+def translate_text():
+    print(flask.request)
+    return flask.jsonify({})
 
 @app.route("/", methods=['GET', 'POST'])
 def main():
@@ -110,6 +103,9 @@ def main():
             })
             # pd.DataFrame([{'id' : archidekt_id}]).to_gbq('magic.deck_ids',project_id='nifty-beast-realm',if_exists='append')
             return flask.redirect(flask.url_for('main'))
+    elif True:
+        df = pd.DataFrame([])
+        return flask.render_template("query_result.html", results=df.values, form=form, update_form=UpdateForm())
     else:
         print('FS: deck_ids get')
         deck_ids_ref = db.collection(u'deck-ids')
@@ -120,7 +116,7 @@ def main():
             df = pd.DataFrame(prices).sort_values(by='deck_price',ascending=False)
         else:
             df = pd.DataFrame(prices)
-        return flask.render_template("query_result.html", results=df.values,form=form)
+        return flask.render_template("query_result.html", results=df.values,form=form,update_form=UpdateForm())
 
 
 if __name__ == "__main__":
