@@ -3,7 +3,7 @@ import concurrent.futures
 import flask
 from google.cloud import bigquery
 
-
+import archidekt
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
@@ -13,6 +13,19 @@ import requests
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
     submit = SubmitField('Submit')
+
+
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
+# Use the application default credentials
+cred = credentials.ApplicationDefault()
+firebase_admin.initialize_app(cred, {
+  'projectId': "nifty-beast-realm",
+})
+
+db = firestore.client()
 
 
 def price_archidekt(url):
@@ -58,17 +71,22 @@ app = flask.Flask(__name__)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
 bigquery_client = bigquery.Client()
 
-@app.route('/submit', methods=['GET', 'POST'])
-def login():
-    form = SubmitForm()
-    if form.validate_on_submit():
-        print("wtf!?")
-        archidekt_id = form.url.data.split('/')[-1].split('#')[0]
-        # new_deck = price_archidekt("https://archidekt.com/api/decks/{}/".format(archidekt_id))
-        print('BQ: deck_ids post')
-        pd.DataFrame([{'id' : archidekt_id}]).to_gbq('magic.deck_ids',project_id='nifty-beast-realm',if_exists='append')
-        return flask.redirect(flask.url_for('main'))
-    return flask.render_template('submit.html',  title='Sign In', form=form)
+# @app.route('/submit', methods=['GET', 'POST'])
+# def login():
+#     form = SubmitForm()
+#     if form.validate_on_submit():
+#         print("wtf!?")
+#         archidekt_id = form.url.data.split('/')[-1].split('#')[0]
+#         # new_deck = price_archidekt("https://archidekt.com/api/decks/{}/".format(archidekt_id))
+#         print('BQ: deck_ids post')
+#         doc_ref = db.collection(u'deck-ids').document(archidekt_id)
+#         doc_ref.set({
+#             u'modified': str(pd.datetime.today()),
+#             u'data': {'complex': 4.2},
+#         })
+#         pd.DataFrame([{'id' : archidekt_id}]).to_gbq('magic.deck_ids',project_id='nifty-beast-realm',if_exists='append')
+#         return flask.redirect(flask.url_for('main'))
+#     return flask.render_template('submit.html',  title='Sign In', form=form)
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -78,23 +96,31 @@ def main():
     if form.validate_on_submit():
         print("wtf!?")
         archidekt_id = form.url.data.split('/')[-1].split('#')[0]
-        if requests.get('https://archidekt.com/api/decks/{}/'.format(archidekt_id)).status_code != 200:
+        deck_request = requests.get('https://archidekt.com/api/decks/{}/'.format(archidekt_id))
+        if deck_request.status_code != 200:
             flask.flash('Bad archidekt URL! {}'.format(form.url.data))
             return flask.redirect(flask.url_for('main'))
         else:
-            pd.DataFrame([{'id' : archidekt_id}]).to_gbq('magic.deck_ids',project_id='nifty-beast-realm',if_exists='append')
+            doc_ref = db.collection(u'deck-ids').document(archidekt_id)
+            data = deck_request.json()
+            doc_ref.set({
+                u'modified': str(pd.datetime.today()),
+                # u'cards': archidekt.get_cards_in_archidekt(data),
+                # u'commander': archidekt.get_commander_in_archidekt(data),
+            })
+            # pd.DataFrame([{'id' : archidekt_id}]).to_gbq('magic.deck_ids',project_id='nifty-beast-realm',if_exists='append')
             return flask.redirect(flask.url_for('main'))
-
-    print('BQ: deck_ids get')
-    deck_ids = pd.read_gbq("""
-    SELECT * FROM `nifty-beast-realm.magic.deck_ids` LIMIT 1
-    """,project_id="nifty-beast-realm")
-    prices = []
-    for id in deck_ids['id'].values:
-        prices.append(price_archidekt("https://archidekt.com/api/decks/{}/".format(id)))
-
-    df = pd.DataFrame(prices).sort_values(by='deck_price',ascending=False)
-    return flask.render_template("query_result.html", results=df.values,form=form)
+    else:
+        print('FS: deck_ids get')
+        deck_ids_ref = db.collection(u'deck-ids')
+        prices = []
+        for id in list(map(lambda x: x.id, deck_ids_ref.stream())):
+            prices.append(price_archidekt("https://archidekt.com/api/decks/{}/".format(id)))
+        if len(prices) > 0:
+            df = pd.DataFrame(prices).sort_values(by='deck_price',ascending=False)
+        else:
+            df = pd.DataFrame(prices)
+        return flask.render_template("query_result.html", results=df.values,form=form)
 
 
 if __name__ == "__main__":
