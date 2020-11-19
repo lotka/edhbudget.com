@@ -1,0 +1,162 @@
+{% extends 'bootstrap/base.html' %}
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+{% block content %}
+<style>
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {background-color: #f2f2f2;}
+</style>
+<div class="container">
+<h1> Oathbreaker Budgets</h1>
+
+For the deck price, card costs are calcualted with the cheapest edition of each card.
+The price is also averaged over prices since 11/11/2020.
+<left>
+<form action="" method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <p><br>
+        <b>Add Archidekt URL:</b>
+        {{ form.url(size=32) }} {{ form.submit() }}
+
+    </p>
+
+</form>
+
+</left>
+
+<hr>
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<ul>
+    {% for message in messages %}
+    <li>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endwith %}
+
+<table>
+    <tr>
+        <th></th>
+        <th>Price</th>
+        <th>Week +/-</th>
+        <th>Deck Name</th>
+        <th>User</th>
+        <th>Commander</th>
+        <th>Commander<br>Price</th>
+        <th>Card<br>Count</th>
+        <th>Last Refresh</th>
+    </tr>
+    {% for result in results %}
+    <tr>
+      <td><a href="javascript:update_deck_id({{ result['id'] }});">
+        <span id="deck-{{ result['id'] }}-refresh">🔄</span>
+      </a></td>
+        <td>
+          <span id="deck-{{ result['id'] }}-deck_price">
+            {% if result['deck_price'] > 35.0 %}
+            <div style="color:red; font-weight: bold;">
+            {% else %}
+            <div style="color:green; font-weight: bold;">
+            {% endif %}
+            ${{ result['deck_price'] }}
+            </div>
+          </span>
+        </td>
+        <td>
+          <div style="text-align:center">
+            <span id="deck-{{ result['change'] }}-modified">
+              {{ (100*result['deck_price_change']/result['deck_price']) | round(2) }}%
+            </span>
+          </div>
+        </td>
+        <div class='deck-ids' hidden>{{ result['id'] }}</div>
+        <td>
+          <a href="{{ result['url']}}">
+            {{ result['name'] }}
+          </a>
+
+          {% if result['free_cards'] != 0 %}
+          Weird cards detected
+          {% endif %}
+
+        </td>
+        <td>
+          <!-- <a href="{{ result['owner']}}"> -->
+            <span id="deck-{{ result['id'] }}-owner">
+              {{ result['owner'] }}
+            </span>
+          <!-- </a> -->
+        </td>
+        <td>
+          <a href="https://oathbreaker.edhrec.com/oathbreakers/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
+            <span id="deck-{{ result['id'] }}-commander">
+              {{ result['commander'] }}
+            </span>
+          </a>
+        </td>
+        <td><span id="deck-{{ result['id'] }}-commander_price">{{ result['commander_price'] }}</span></td>
+        <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td>
+        <td><span id="deck-{{ result['id'] }}-modified">{{ result['modified'][:16] }}</span></td>
+    </tr>
+    {% endfor %}
+</table>
+
+
+<a href="javascript:onLoad();">
+  Update All
+</a>
+
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+
+
+        function update_deck_id(id) {
+            $('#deck-' + id + '-refresh').html('<img src="{{ url_for('static', filename='loading.gif') }}">');
+            $.post('/update_deck_id', {'id' : id}).done(function(response) {
+                const deck_price = response['deck_price']
+                if (deck_price > 35.0) {
+                  $('#deck-' + id + '-deck_price').html('<div style="color:red; font-weight: bold;"> $' + response['deck_price'] + '</div>')
+                } else {
+                  $('#deck-' + id + '-deck_price').html('<div style="color:green; font-weight: bold;"> $' + response['deck_price'] + '</div>')
+                }
+                $('#deck-' + id + '-commander_price').text(response['commander_price'])
+                $('#deck-' + id + '-modified').text(response['modified'].substr(0,16))
+                $('#deck-' + id + '-refresh').text('🔄');
+            }).fail(function(response) {
+              console.log(response)
+            })
+        };
+
+        function sleep(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+
+        async function onLoad() {
+          var decks = $('div.deck-ids').toArray();
+          for (i =0; i <decks.length; ++i) {
+            update_deck_id(decks[i].textContent);
+            await sleep(100);
+          }
+        }
+
+            // onLoad();
+    </script>
+{% endblock %}
