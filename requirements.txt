@@ -4,3 +4,5 @@ flask-wtf
 pandas-gbq
 pandas
 pyarrow
+firebase-admin
+flask-bootstrap
