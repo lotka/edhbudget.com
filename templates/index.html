@@ -48,6 +48,7 @@ The price is also averaged over prices since 11/11/2020.</h2>
 <table>
     <tr>
         <th></th>
+        <thead>
         <th>Price</th>
         <th>Week +/-</th>
         <th>Deck Name</th>
@@ -56,6 +57,7 @@ The price is also averaged over prices since 11/11/2020.</h2>
         <th>Commander<br>Price</th>
         <th>Card<br>Count</th>
         <th>Last Refresh</th>
+        </thead>
     </tr>
     {% for result in results %}
     <tr>
@@ -74,11 +76,11 @@ The price is also averaged over prices since 11/11/2020.</h2>
           </span>
         </td>
         <td>
-          <div style="text-align:center">
+          <!-- <div style="text-align:center"> -->
             <span id="deck-{{ result['change'] }}-modified">
               {{ (100*result['deck_price_change']/result['deck_price']) | round(2) }}%
             </span>
-          </div>
+          <!-- </div> -->
         </td>
         <div class='deck-ids' hidden>{{ result['id'] }}</div>
         <td>
@@ -117,8 +119,8 @@ The price is also averaged over prices since 11/11/2020.</h2>
   Update All
 </a>
 </div>
-<div class="break"></div>
-</div>
+<!-- <div class="break"></div>
+</div> -->
 
 <br><br>
     </div>
