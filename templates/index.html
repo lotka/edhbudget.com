@@ -69,7 +69,7 @@ The price is also averaged over prices since 11/11/2020.</h2>
             {% else %}
             <div style="color:rgb(88, 155, 0); font-weight: bold;">
             {% endif %}
-            ${{ result['deck_price'] }}
+            ${{ result['deck_price']  | round(2) }}
             </div>
           </span>
         </td>
