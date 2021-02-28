@@ -29,50 +29,64 @@ firebase_admin.initialize_app(cred, {
 db = firestore.client()
 
 def calculate_price_archidekt(data,url):
-    commander = None
+    commander = 'Commander not found'
     for card in data['cards']:
         if 'Commander' in card['categories'] and 'Planeswalker' in card['card']['oracleCard']['types']:
             commander = card['card']['oracleCard']['name']
 
     cards = []
-    for card in data['cards']:
-        if 'Basic' not in card['card']['oracleCard']['superTypes'] and 'Maybeboard' not in card['categories']:
-            cards.append(card['card']['oracleCard']['name'])
-        where_in_statement = '['
-    for card in cards:
-        where_in_statement += "\"{}\", ".format(card)
-    where_in_statement = where_in_statement[:-2] + ']'
+    if len(data['cards']) > 0:
+        for card in data['cards']:
+            if 'Basic' not in card['card']['oracleCard']['superTypes'] and 'Maybeboard' not in card['categories'] and 'Sideboard' not in card['categories']:
+                cards.append(card['card']['oracleCard']['name'])
+            where_in_statement = '['
+        for card in cards:
+            where_in_statement += "\"{}\", ".format(card)
+        where_in_statement = where_in_statement[:-2] + ']'
 
-    q = """
-    WITH historical AS (
-    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE name IN UNNEST({})
-    GROUP BY name, datetime
-    ),
-    shifted_historical AS (
-    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_lag FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE name IN UNNEST({}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK))
-    GROUP BY name, datetime
-    )
-    SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
-    LEFT JOIN historical USING (name)
-    GROUP BY name
-    """.format(where_in_statement,where_in_statement)
-    print('BQ: get prices')
-    historical = pd.read_gbq(q, project_id="nifty-beast-realm")
+        q = """
+        WITH historical AS (
+        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price FROM `nifty-beast-realm.magic.scryfall-prices`
+        WHERE name IN UNNEST({})
+        GROUP BY name, datetime
+        ),
+        shifted_historical AS (
+        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_lag FROM `nifty-beast-realm.magic.scryfall-prices`
+        WHERE name IN UNNEST({}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK))
+        GROUP BY name, datetime
+        )
+        SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
+        LEFT JOIN historical USING (name)
+        GROUP BY name
+        """.format(where_in_statement,where_in_statement)
+        print('BQ: get prices')
+        historical = pd.read_gbq(q, project_id="nifty-beast-realm")
 
-    return {'name': data['name'],
-            'owner': data['owner']['username'],
-            'url': url.replace('/api', ''),
-            'commander': commander,
-            'commander_price': round(historical['price'][historical.name == commander].sum(), 2),
-            'deck_price': round(historical['price'][historical.name != commander].sum(), 2),
-            'deck_price_change': round(historical['change'][historical.name != commander].sum(), 2),
-            'cards': len(historical),
-            'free_cards': int((historical['price'] == 0).sum()),
-            'id': data['id'],
-            'modified': str(datetime.datetime.today()),
-            }
+        return {'name': data['name'],
+                'owner': data['owner']['username'],
+                'url': url.replace('/api', ''),
+                'commander': commander,
+                'commander_price': round(historical['price'][historical.name == commander].sum(), 2),
+                'deck_price': round(historical['price'][historical.name != commander].sum(), 2),
+                'deck_price_change': round(historical['change'][historical.name != commander].sum(), 2),
+                'cards': len(historical),
+                'free_cards': int((historical['price'] == 0).sum()),
+                'id': data['id'],
+                'modified': str(datetime.datetime.today()),
+                }
+    else:
+        return {'name': data['name'],
+                'owner': data['owner']['username'],
+                'url': url.replace('/api', ''),
+                'commander': commander,
+                'commander_price': 0,
+                'deck_price': 0.0000000000000001,
+                'deck_price_change': 0,
+                'cards': 0,
+                'free_cards': 0,
+                'id': data['id'],
+                'modified': str(datetime.datetime.today()),
+                }
 
 
 def price_archidekt(url):
