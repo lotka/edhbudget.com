@@ -39,9 +39,13 @@ body {
 }
 
 header {
+<<<<<<< HEAD
+=======
+  height: 400px;
+>>>>>>> michael_mobile
   width: 100vw;
   text-align: center;
-  padding-top: 150px;
+  padding-top: 50px;
   /* position: absolute;
   top: 350px;
   left: 50%;
@@ -168,8 +172,81 @@ table a:hover {
   text-decoration: underline;
 }
 
+@media 
+only screen and (max-width: 760px),
+(min-device-width: 768px) and (max-device-width: 1024px)  {
+
+  header {
+    height: 300px;
+    padding: 40px;
+  }
+
+  h1 {
+    font-size: 35px;
+    margin-bottom: 5px;
+  }
+
+  h2 {
+    margin-top: 10px;
+    font-size: 13px;
+    text-shadow: 1px 1px #000000;
+  }
+
+  p {
+    font-size: 10px;
+  }
+
+	/* Force table to not be like tables anymore */
+	table, thead, tbody, th, td, tr { 
+		display: block; 
+	}
+	
+	/* Hide table headers (but not display: none;, for accessibility) */
+	thead tr { 
+		position: absolute;
+		top: -9999px;
+		left: -9999px;
+	}
+	
+	tr { border: 1px solid #ccc; }
+	
+	td { 
+		/* Behave  like a "row" */
+		border: none;
+		border-bottom: 1px solid #eee; 
+		position: relative;
+		padding-left: 50%; 
+	}
+	
+	td:before { 
+		/* Now like a table header */
+		position: absolute;
+		/* Top/left values mimic padding */
+		top: 6px;
+		left: 6px;
+		width: 45%; 
+		padding-right: 10px; 
+		white-space: nowrap;
+	}
+	
+	/*
+	Label the data
+  */
+  td:nth-of-type(1):before { content: "Refresh"; }
+	td:nth-of-type(2):before { content: "Price"; }
+	td:nth-of-type(3):before { content: "Week +/-"; }
+	td:nth-of-type(4):before { content: "Deck Name"; }
+	td:nth-of-type(5):before { content: "User"; }
+	td:nth-of-type(6):before { content: "Commander"; }
+	td:nth-of-type(7):before { content: "Commander Price"; }
+	td:nth-of-type(8):before { content: "Card Count"; }
+	td:nth-of-type(9):before { content: "Last Refresh"; }
+  /* td:nth-of-type(10):before { content: "GPA"; }*/
+}
+
 p {
   color: white;
+  text-shadow: 1px 1px #000000;
 }
 
 a:hover {
@@ -222,5 +299,4 @@ a:hover {
   height: 1px;
   width: 100vw;
   background-color: black;
-
 }
