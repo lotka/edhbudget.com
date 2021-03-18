@@ -65,6 +65,7 @@ The price is also averaged over prices since 11/11/2020.</h2>
         <span id="deck-{{ result['id'] }}-refresh">🔄</span>
       </a></td>
         <td>
+          <a href="price_list?archidekt_id={{ result['id'] }}">
           <span id="deck-{{ result['id'] }}-deck_price">
             {% if result['deck_price'] > 35.0 %}
             <div style="color:rgb(209, 0, 0); font-weight: bold;">
@@ -72,9 +73,10 @@ The price is also averaged over prices since 11/11/2020.</h2>
             <div style="color:rgb(88, 155, 0); font-weight: bold;">
             {% endif %}
             ${{ result['deck_price'] }}
-            </div>
-          </span>
-        </td>
+          </div>
+        </span>
+      </a>
+      </td>
         <td>
           <!-- <div style="text-align:center"> -->
             <span id="deck-{{ result['change'] }}-modified">
