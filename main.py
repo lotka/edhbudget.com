@@ -1,3 +1,4 @@
+import json
 import flask
 import pandas as pd
 import requests
@@ -10,7 +11,7 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 from firebase_admin import credentials
 from firebase_admin import firestore
-
+from flask import request
 
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
@@ -29,50 +30,73 @@ firebase_admin.initialize_app(cred, {
 db = firestore.client()
 
 def calculate_price_archidekt(data,url):
-    commander = None
+    commander = 'Commander not found'
     for card in data['cards']:
         if 'Commander' in card['categories'] and 'Planeswalker' in card['card']['oracleCard']['types']:
             commander = card['card']['oracleCard']['name']
 
     cards = []
-    for card in data['cards']:
-        if 'Basic' not in card['card']['oracleCard']['superTypes'] and 'Maybeboard' not in card['categories']:
-            cards.append(card['card']['oracleCard']['name'])
-        where_in_statement = '['
-    for card in cards:
-        where_in_statement += "\"{}\", ".format(card)
-    where_in_statement = where_in_statement[:-2] + ']'
+    if len(data['cards']) > 0:
+        for card in data['cards']:
+            if 'Basic' not in card['card']['oracleCard']['superTypes'] and 'Maybeboard' not in card['categories'] and 'Sideboard' not in card['categories']:
+                cards.append(card['card']['oracleCard']['name'])
+            where_in_statement = '['
+        for card in cards:
+            where_in_statement += "\"{}\", ".format(card)
+        where_in_statement = where_in_statement[:-2] + ']'
 
-    q = """
-    WITH historical AS (
-    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE name IN UNNEST({})
-    GROUP BY name, datetime
-    ),
-    shifted_historical AS (
-    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_lag FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE name IN UNNEST({}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK))
-    GROUP BY name, datetime
-    )
-    SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
-    LEFT JOIN historical USING (name)
-    GROUP BY name
-    """.format(where_in_statement,where_in_statement)
-    print('BQ: get prices')
-    historical = pd.read_gbq(q, project_id="nifty-beast-realm")
+        q = """
+        WITH historical AS (
+        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price FROM `nifty-beast-realm.magic.scryfall-prices`
+        WHERE name IN UNNEST({})
+        GROUP BY name, datetime
+        ),
+        shifted_historical AS (
+        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_lag FROM `nifty-beast-realm.magic.scryfall-prices`
+        WHERE name IN UNNEST({}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK))
+        GROUP BY name, datetime
+        )
+        SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
+        LEFT JOIN historical USING (name)
+        GROUP BY name
+        """.format(where_in_statement,where_in_statement)
+        print('BQ: get prices')
+        historical = pd.read_gbq(q, project_id="nifty-beast-realm")
+        price_list = historical[['name', 'price']].sort_values(
+            by='price', ascending=False)
+        price_list['price'] = price_list['price'].round(2)
+        price_list = price_list.round(2).values.tolist()
+        flat_price_list = []
+        for value in price_list:
+            flat_price_list.append(value[0])
+            flat_price_list.append(value[1])
 
-    return {'name': data['name'],
-            'owner': data['owner']['username'],
-            'url': url.replace('/api', ''),
-            'commander': commander,
-            'commander_price': round(historical['price'][historical.name == commander].sum(), 2),
-            'deck_price': round(historical['price'][historical.name != commander].sum(), 2),
-            'deck_price_change': round(historical['change'][historical.name != commander].sum(), 2),
-            'cards': len(historical),
-            'free_cards': int((historical['price'] == 0).sum()),
-            'id': data['id'],
-            'modified': str(datetime.datetime.today()),
-            }
+        return {'name': data['name'],
+                'owner': data['owner']['username'],
+                'url': url.replace('/api', ''),
+                'commander': commander,
+                'commander_price': round(historical['price'][historical.name == commander].sum(), 2),
+                'deck_price': round(historical['price'][historical.name != commander].sum(), 2),
+                'deck_price_change': round(historical['change'][historical.name != commander].sum(), 2),
+                'cards': len(historical),
+                'free_cards': int((historical['price'] == 0).sum()),
+                'id': data['id'],
+                'modified': str(datetime.datetime.today()),
+                'price_list': flat_price_list,
+                }
+    else:
+        return {'name': data['name'],
+                'owner': data['owner']['username'],
+                'url': url.replace('/api', ''),
+                'commander': commander,
+                'commander_price': 0,
+                'deck_price': 0.0000000000000001,
+                'deck_price_change': 0,
+                'cards': 0,
+                'free_cards': 0,
+                'id': data['id'],
+                'modified': str(datetime.datetime.today()),
+                }
 
 
 def price_archidekt(url):
@@ -82,7 +106,28 @@ def price_archidekt(url):
 app = flask.Flask(__name__)
 bootstrap = Bootstrap(app)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
-bigquery_client = bigquery.Client()
+bigquery_client = bigquery.Client(project='nifty-beast-realm')
+
+
+@app.route('/price_list', methods=['GET'])
+def api_filter():
+    doc_ref = db.collection(u'deck-ids').document(request.args['archidekt_id'])
+    data = doc_ref.get().to_dict()['price_list']
+    
+    res ="""<style>
+        table, th, td {
+        border: 0px solid black;
+        font-size: 12px;
+        font-weight: normal;
+        font-family: Arial, Helvetica, sans-serif;
+        }
+        </style>
+        <table>"""
+    for i in range(0,len(data),2):
+        res += '<tr> <th>{}</th> <th><b>{}</b></th> <th>{}</th> </tr>'.format(
+            i //2 + 1, data[i], data[i+1])
+    res += '</table>'
+    return res
 
 
 @app.route('/update_deck_id', methods=['POST'])
@@ -126,4 +171,5 @@ def main():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080, debug=True)
+    
+    app.run(host="0.0.0.0", port=8080, debug=True)

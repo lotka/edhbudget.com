@@ -5,7 +5,7 @@
 
 
 {% block content %}
-<link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" type="text/css" > 
+<link href="{{ url_for('static', filename='style3.css') }}" rel="stylesheet" type="text/css" > 
 <div id="gap"></div>
 <header>
   <!-- <img id="banner" src="https://static1.squarespace.com/static/551a2e0ee4b0bf065e1b3b3f/551a6237e4b02e9aae0cd8be/57d9347dd1758e7b8ab50112/1473889192651/mtgmasterpiecetheaterbanner.jpg?format=1500w"></img> -->
@@ -66,6 +66,7 @@ The price is also averaged over prices since 11/11/2020.</h2>
         <span id="deck-{{ result['id'] }}-refresh">🔄</span>
       </a></td>
         <td>
+          <a href="price_list?archidekt_id={{ result['id'] }}">
           <span id="deck-{{ result['id'] }}-deck_price">
             {% if result['deck_price'] > 35.0 %}
             <div style="color:rgb(209, 0, 0); font-weight: bold;">
@@ -73,9 +74,10 @@ The price is also averaged over prices since 11/11/2020.</h2>
             <div style="color:rgb(88, 155, 0); font-weight: bold;">
             {% endif %}
             ${{ result['deck_price'] }}
-            </div>
-          </span>
-        </td>
+          </div>
+        </span>
+      </a>
+      </td>
         <td>
           <!-- <div style="text-align:center"> -->
             <span id="deck-{{ result['change'] }}-modified">
