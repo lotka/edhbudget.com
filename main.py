@@ -13,6 +13,8 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import request
 
+PRICE_PERIOD = 3
+
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
     submit = SubmitField('Submit')
@@ -35,6 +37,13 @@ def calculate_price_archidekt(data,url):
         if 'Commander' in card['categories'] and ('Planeswalker' in card['card']['oracleCard']['types'] or 'Creature' in card['card']['oracleCard']['types']):
             commander = card['card']['oracleCard']['name']
 
+    if data['deckFormat'] == 14:
+        deckFormat = 'oathbreaker'
+    elif data['deckFormat'] == 3:
+        deckFormat = 'edh'
+    else:
+        deckFormat = 'other'
+
     cards = []
     if len(data['cards']) > 0:
         for card in data['cards']:
@@ -48,18 +57,20 @@ def calculate_price_archidekt(data,url):
         q = """
         WITH historical AS (
         SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price FROM `nifty-beast-realm.magic.scryfall-prices`
-        WHERE name IN UNNEST({})
+        WHERE name IN UNNEST({cards})
+        and TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL {period} MONTH)) < datetime 
         GROUP BY name, datetime
         ),
         shifted_historical AS (
         SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_lag FROM `nifty-beast-realm.magic.scryfall-prices`
-        WHERE name IN UNNEST({}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK))
+        WHERE name IN UNNEST({cards}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
+        and TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1+{period} MONTH)) < datetime 
         GROUP BY name, datetime
         )
         SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
         LEFT JOIN historical USING (name)
         GROUP BY name
-        """.format(where_in_statement,where_in_statement)
+        """.format(cards=where_in_statement,period=PRICE_PERIOD)
         print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
         price_list = historical[['name', 'price', 'price_lag']].sort_values(
@@ -72,20 +83,27 @@ def calculate_price_archidekt(data,url):
             flat_price_list.append(value[0])
             flat_price_list.append(value[1])
             flat_price_list.append(value[2])
+        
 
-        return {'name': data['name'],
+        res =  {'name': data['name'],
                 'owner': data['owner']['username'],
                 'url': url.replace('/api', ''),
                 'commander': commander,
-                'commander_price': round(historical['price'][historical.name == commander].sum(), 2),
-                'deck_price': round(historical['price'][historical.name != commander].sum(), 2),
-                'deck_price_change': round(historical['change'][historical.name != commander].sum(), 2),
                 'cards': len(historical),
+                'commander_price' : round(historical['price'][historical.name == commander].sum(), 2),
                 'free_cards': int((historical['price'] == 0).sum()),
                 'id': data['id'],
                 'modified': str(datetime.datetime.today()),
                 'price_list': flat_price_list,
+                'deckFormat': deckFormat
                 }
+        if deckFormat == 'oathbreaker':
+            res['deck_price'] = round(historical['price'][historical.name != commander].sum(), 2)
+            res['deck_price_change'] = round(historical['change'][historical.name != commander].sum(), 2)
+        else:
+            res['deck_price'] = round(historical['price'].sum(), 2)
+            res['deck_price_change'] = round(historical['change'].sum(), 2)
+        return res
     else:
         return {'name': data['name'],
                 'owner': data['owner']['username'],
@@ -152,24 +170,47 @@ def update_deck(archidekt_id):
         return result
 
 
-@app.route("/", methods=['GET', 'POST'])
-def main():
+def main_page(deckFormat,budget):
     form = SubmitForm()
     if form.validate_on_submit():
         if not update_deck(form.url.data.split('/')[-1].split('#')[0]):
             flask.flash('Bad archidekt URL! {}'.format(form.url.data))
-        return flask.redirect(flask.url_for('main'))
+        return flask.redirect(flask.url_for(deckFormat))
     else:
         print('FS: deck_ids get')
-        deck_ids_ref = db.collection(u'deck-ids').order_by('deck_price',direction=firestore.Query.DESCENDING)
+        deck_ids_ref = db.collection(
+            u'deck-ids').order_by('deck_price', direction=firestore.Query.DESCENDING)
         res = []
+        average_price = 0
         for doc in deck_ids_ref.stream():
-            res.append(doc.to_dict())
+            doc = doc.to_dict()
+            if doc['deckFormat'] != deckFormat:
+                continue
+            average_price += doc['deck_price']
+            res.append(doc)
+        average_price = average_price/float(len(res))
         return flask.render_template("index.html",
-                                     title='Oathy Budgets',
+                                     title=deckFormat,
+                                     budget=budget,
+                                     average_price=round(average_price,2),
+                                     price_period=PRICE_PERIOD,
                                      results=res,
                                      form=form,
                                      update_form=UpdateForm())
+
+
+@app.route("/oathbreaker", methods=['GET', 'POST'])
+def oathbreaker():
+    return main_page('oathbreaker',budget=35)
+
+
+@app.route("/", methods=['GET', 'POST'])
+def main():
+    return main_page('edh', budget=60)
+
+@app.route("/edh", methods=['GET', 'POST'])
+def edh():
+    return main_page('edh', budget=60)
 
 
 @app.route("/deck", methods=['GET', 'POST'])

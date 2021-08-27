@@ -34,12 +34,12 @@ body {
   background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url("http://nifty-beast-realm.appspot.com/static/banner.jpg ");
   background-color: black;
   margin: 0 auto;
-  color: white;
+  color: #d4d4d4;
   font-family: "Merriweather Sans", sans-serif;
 }
 
 header {
-  height: 400px;
+  /* height: 400px; */
   width: 100vw;
   text-align: center;
   padding-top: 50px;
@@ -99,9 +99,9 @@ h1 {
 
 h2 {
   font-family:"Merriweather Sans", sans-serif;
-  color: rgb(255, 255, 255);
+  color: #d4d4d4;
   text-align: center;
-  font-size: 25px;
+  font-size: 20px;
   text-shadow: 3px 3px #000000;
 }
 
@@ -250,6 +250,10 @@ p {
   text-shadow: 1px 1px #000000;
 }
 
+a {
+  color: rgb(194, 194, 194);
+}
+
 a:hover {
   color: white;
   text-decoration: underline;
@@ -300,4 +304,10 @@ a:hover {
   height: 1px;
   width: 100vw;
   background-color: black;
+}
+
+form, button, input, select, textarea {
+  font-family: inherit;
+  color: black;
+  font-size: 100%;
 }
