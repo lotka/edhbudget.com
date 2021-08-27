@@ -32,7 +32,7 @@ db = firestore.client()
 def calculate_price_archidekt(data,url):
     commander = 'Commander not found'
     for card in data['cards']:
-        if 'Commander' in card['categories'] and 'Planeswalker' in card['card']['oracleCard']['types']:
+        if 'Commander' in card['categories'] and ('Planeswalker' in card['card']['oracleCard']['types'] or 'Creature' in card['card']['oracleCard']['types']):
             commander = card['card']['oracleCard']['name']
 
     cards = []
