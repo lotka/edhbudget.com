@@ -106,7 +106,11 @@ The price is also averaged over prices since 11/11/2020.</h2>
           <!-- </a> -->
         </td>
         <td>
-
+          <a href="https://oathbreaker.edhrec.com/oathbreakers/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
+            <span id="deck-{{ result['id'] }}-commander">
+              {{ result['commander'] }}
+            </span>
+          </a>
         </td>
         <td><span id="deck-{{ result['id'] }}-commander_price">{{ result['commander_price'] }}</span></td>
         <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td>

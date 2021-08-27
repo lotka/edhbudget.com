@@ -1,0 +1,76 @@
+{% extends 'bootstrap/base.html' %}
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+
+{% block content %}
+<script data-ad-client="ca-pub-1384705583832067" async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<link href="{{ url_for('static', filename='style3.css') }}" rel="stylesheet" type="text/css" > 
+<div id="gap"></div>
+<header>
+  <!-- <img id="banner" src="https://static1.squarespace.com/static/551a2e0ee4b0bf065e1b3b3f/551a6237e4b02e9aae0cd8be/57d9347dd1758e7b8ab50112/1473889192651/mtgmasterpiecetheaterbanner.jpg?format=1500w"></img> -->
+<div class="container">
+<div class="banner-image">
+<div>
+<h1 class="banner-text"> Oathbreaker Budgets</h1>
+<br>
+<h2 class="banner-text">Oathbreaker decks must be $35 or below. Oathbreakers themselves must be $10 or under. <br><br>
+  For the deck price, card costs are calcualted with the cheapest edition of each card.
+The price is also averaged over prices since 11/11/2020.</h2>
+<br>
+<left>
+<form action="" method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <p><br>
+        <b>Add Archidekt URL:</b>
+        {{ form.url(size=32) }} {{ form.submit() }}
+
+    </p>
+
+</form>
+</div>
+</div>
+</header>
+</left>
+
+
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<ul>
+    {% for message in messages %}
+    <li>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endwith %}
+<div class="table-area">
+<table>
+    <tr>
+        <th></th>
+        <thead>
+        <th>Card</th>
+        <th>Price</th>
+        <th>Last Week Price</th>
+        <th>% Change</th>
+        </thead>
+    </tr>
+    {% for result in results %}
+    <tr>
+        <td><span >{{ result[0] }}</span></td>
+        <td><span>{{ result[1] }}</span></td>
+        <td><span>{{ result[2] }}</span></td>
+        <td><span>{{ result[3] }}</span></td>
+    </tr>
+    {% endfor %}
+</table>
+
+<br><br>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+{% endblock %}
