@@ -62,14 +62,16 @@ def calculate_price_archidekt(data,url):
         """.format(where_in_statement,where_in_statement)
         print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
-        price_list = historical[['name', 'price']].sort_values(
+        price_list = historical[['name', 'price', 'price_lag']].sort_values(
             by='price', ascending=False)
         price_list['price'] = price_list['price'].round(2)
+        price_list['price_lag'] = price_list['price_lag'].round(2)
         price_list = price_list.round(2).values.tolist()
         flat_price_list = []
         for value in price_list:
             flat_price_list.append(value[0])
             flat_price_list.append(value[1])
+            flat_price_list.append(value[2])
 
         return {'name': data['name'],
                 'owner': data['owner']['username'],
@@ -113,7 +115,6 @@ bigquery_client = bigquery.Client(project='nifty-beast-realm')
 def api_filter():
     doc_ref = db.collection(u'deck-ids').document(request.args['archidekt_id'])
     data = doc_ref.get().to_dict()['price_list']
-    
     res ="""<style>
         table, th, td {
         border: 0px solid black;
@@ -128,6 +129,7 @@ def api_filter():
             i //2 + 1, data[i], data[i+1])
     res += '</table>'
     return res
+    
 
 
 @app.route('/update_deck_id', methods=['POST'])
@@ -164,6 +166,30 @@ def main():
         for doc in deck_ids_ref.stream():
             res.append(doc.to_dict())
         return flask.render_template("index.html",
+                                     title='Oathy Budgets',
+                                     results=res,
+                                     form=form,
+                                     update_form=UpdateForm())
+
+
+@app.route("/deck", methods=['GET', 'POST'])
+def deck():
+    form = SubmitForm()
+    if form.validate_on_submit():
+        if not update_deck(form.url.data.split('/')[-1].split('#')[0]):
+            flask.flash('Bad archidekt URL! {}'.format(form.url.data))
+        return flask.redirect(flask.url_for('main'))
+    else:
+        doc_ref = db.collection(u'deck-ids').document(request.args['archidekt_id'])
+        data = doc_ref.get().to_dict()['price_list']
+        print(data)
+        res = []
+        for i in range(0, len(data), 3):
+            a,b,c = data[i],float(data[i+1]), float(data[i+2])
+            res.append([data[i],
+                        data[i+1], data[i+2],
+                        100*round((data[i+1] - data[i+2])/data[i+1], 2)])
+        return flask.render_template("deck.html",
                                      title='Oathy Budgets',
                                      results=res,
                                      form=form,
