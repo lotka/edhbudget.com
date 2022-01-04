@@ -13,7 +13,7 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import request
 
-PRICE_PERIOD = 3
+PRICE_PERIOD = 12
 
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
@@ -68,7 +68,7 @@ def calculate_price_archidekt(data,url):
         GROUP BY name, datetime
         )
         SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
-        LEFT JOIN historical USING (name)
+        LEFT JOIN historical USING (name,datetime)
         GROUP BY name
         """.format(cards=where_in_statement,period=PRICE_PERIOD)
         print(q)
