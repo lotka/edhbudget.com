@@ -76,16 +76,17 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
         <th>Deck Name</th>
         <th>User</th>
         <th>Commander</th>
-        <th>Commander<br>Price</th>
+        <!-- <th>Commander<br>Price</th> -->
         <th>Card<br>Count</th>
         <th>Last Refresh</th>
+        <th>Q1 Price</th>
         </thead>
     </tr>
     {% for result in results %}
     <tr>
       <td><a href="javascript:update_deck_id({{ result['id'] }});">
-        <span id="deck-{{ result['id'] }}-refresh">🔄</span>
-      </a></td>
+          <span id="deck-{{ result['id'] }}-refresh">🔄</span></a>
+      </td>
         <td>
           <a href="deck?archidekt_id={{ result['id'] }}">
           <span id="deck-{{ result['id'] }}-deck_price">
@@ -124,7 +125,7 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
             </span>
           <!-- </a> -->
         </td>
-        <td>
+        <!-- <td>
           {% if title == 'oathbreaker' %}
           <a href="https://oathbreaker.edhrec.com/oathbreakers/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
           {% else %}
@@ -134,10 +135,21 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
               {{ result['commander'] }}
             </span>
           </a>
-        </td>
+        </td> -->
         <td><span id="deck-{{ result['id'] }}-commander_price">{{ result['commander_price'] }}</span></td>
         <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td>
         <td><span id="deck-{{ result['id'] }}-modified">{{ result['modified'][:16] }}</span></td>
+        <td>
+          <span id="deck-{{ result['id'] }}-deck_price-season">
+            {% if result['deck_price_season'] > budget %}
+            <div style="color:rgb(209, 0, 0); font-weight: bold;">
+              {% else %}
+              <div style="color:rgb(88, 155, 0); font-weight: bold;">
+                {% endif %}
+                ${{ result['deck_price_season'] }}
+              </div>
+          </span>
+        </td>
     </tr>
     {% endfor %}
 </table>

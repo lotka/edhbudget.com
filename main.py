@@ -66,24 +66,38 @@ def calculate_price_archidekt(data,url):
         WHERE name IN UNNEST({cards}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
         and TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1+{period} MONTH)) < datetime 
         GROUP BY name, datetime
+        ),
+        current_season AS (
+        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
+        WHERE name IN UNNEST({cards}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
+        and TIMESTAMP("2020-09-01") <= datetime and datetime < TIMESTAMP("2022-01-01")
+        GROUP BY name, datetime
         )
-        SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
+        SELECT name,
+              AVG(price) as price,
+              AVG(price_lag) as price_lag,
+              AVG(price) - AVG(price_lag) as change,
+              AVG(price_season) as price_season
+        FROM shifted_historical
         LEFT JOIN historical USING (name)
+        LEFT JOIN current_season USING (name)
         GROUP BY name
         """.format(cards=where_in_statement,period=PRICE_PERIOD)
         print(q)
         print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
-        price_list = historical[['name', 'price', 'price_lag']].sort_values(
+        price_list = historical[['name', 'price', 'price_lag','price_season']].sort_values(
             by='price', ascending=False)
         price_list['price'] = price_list['price'].round(2)
         price_list['price_lag'] = price_list['price_lag'].round(2)
+        price_list['price_season'] = price_list['price_season'].round(2)
         price_list = price_list.round(2).values.tolist()
         flat_price_list = []
         for value in price_list:
             flat_price_list.append(value[0])
             flat_price_list.append(value[1])
             flat_price_list.append(value[2])
+            flat_price_list.append(value[3])
         
 
         res =  {'name': data['name'],
@@ -96,7 +110,8 @@ def calculate_price_archidekt(data,url):
                 'id': data['id'],
                 'modified': str(datetime.datetime.today()),
                 'price_list': flat_price_list,
-                'deckFormat': deckFormat
+                'deckFormat': deckFormat,
+                'deck_price_season' : round(historical['price_season'].sum(), 2)
                 }
         if deckFormat == 'oathbreaker':
             res['deck_price'] = round(historical['price'][historical.name != commander].sum(), 2)
@@ -185,11 +200,14 @@ def main_page(deckFormat,budget):
         average_price = 0
         for doc in deck_ids_ref.stream():
             doc = doc.to_dict()
+            if 'deck_price_season' not in doc:
+                doc['deck_price_season'] = -1.0
             if doc['deckFormat'] != deckFormat:
                 continue
             average_price += doc['deck_price']
             res.append(doc)
         average_price = average_price/float(len(res))
+
         return flask.render_template("index.html",
                                      title=deckFormat,
                                      budget=budget,
@@ -226,11 +244,12 @@ def deck():
         data = doc_ref.get().to_dict()['price_list']
         print(data)
         res = []
-        for i in range(0, len(data), 3):
-            a,b,c = data[i],float(data[i+1]), float(data[i+2])
+        for i in range(0, len(data), 4):
+            # a,b,c,d = data[i],float(data[i+1]), float(data[i+2]), float(data[i+3])
             res.append([data[i],
                         data[i+1], data[i+2],
-                        100*round((data[i+1] - data[i+2])/data[i+1], 2)])
+                        100*round((data[i+1] - data[i+2])/data[i+1], 2),
+                        data[i+3]])
         return flask.render_template("deck.html",
                                      title='Oathy Budgets',
                                      results=res,
