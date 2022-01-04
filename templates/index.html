@@ -125,7 +125,11 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
           <!-- </a> -->
         </td>
         <td>
+          {% if title == 'oathbreaker' %}
           <a href="https://oathbreaker.edhrec.com/oathbreakers/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
+          {% else %}
+          <a href="https://edhrec.com/commanders/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
+          {% endif %}
             <span id="deck-{{ result['id'] }}-commander">
               {{ result['commander'] }}
             </span>

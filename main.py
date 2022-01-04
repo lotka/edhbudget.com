@@ -71,6 +71,7 @@ def calculate_price_archidekt(data,url):
         LEFT JOIN historical USING (name)
         GROUP BY name
         """.format(cards=where_in_statement,period=PRICE_PERIOD)
+        print(q)
         print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
         price_list = historical[['name', 'price', 'price_lag']].sort_values(
