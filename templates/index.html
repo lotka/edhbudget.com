@@ -7,19 +7,17 @@
 {% block content %}
 <script data-ad-client="ca-pub-1384705583832067" async
   src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-<link href="{{ url_for('static', filename='style3.css') }}" rel="stylesheet" type="text/css" > 
+<link href="{{ url_for('static', filename='style4.css') }}" rel="stylesheet" type="text/css" > 
 <div id="gap"></div>
 <header>
   <!-- <img id="banner" src="https://static1.squarespace.com/static/551a2e0ee4b0bf065e1b3b3f/551a6237e4b02e9aae0cd8be/57d9347dd1758e7b8ab50112/1473889192651/mtgmasterpiecetheaterbanner.jpg?format=1500w"></img> -->
 <div class="container">
 <div class="banner-image">
 <div>
-<h1 class="banner-text"> Oathbreaker Budgets</h1>
-<br>
-<h2 class="banner-text">Oathbreaker decks must be $35 or below. Oathbreakers themselves must be $10 or under. <br><br>
+<h1 class="banner-text"> {{ title }} budget</h1>
+<!-- <h2 class="banner-text">Oathbreaker decks must be $35 or below. Oathbreakers themselves must be $10 or under. <br><br>
   For the deck price, card costs are calcualted with the cheapest edition of each card.
-The price is also averaged over prices since 11/11/2020.</h2>
-<br>
+The price is also averaged over prices since 11/11/2020.</h2> -->
 <left>
 <form action="" method="post" novalidate>
     {{ form.hidden_tag() }}
@@ -28,10 +26,7 @@ The price is also averaged over prices since 11/11/2020.</h2>
         {{ form.url(size=32) }} {{ form.submit() }}
 
     </p>
-
 </form>
-</div>
-</div>
 </header>
 </left>
 
@@ -47,19 +42,44 @@ The price is also averaged over prices since 11/11/2020.</h2>
 {% endif %}
 {% endwith %}
 <div class="table-area">
+
+<center>
+Switch to:
+{% if title == 'edh' %}
+<a href='oathbreaker'>oathbreaker</a>
+<br>
+Deck price includes commander, overall budget is ${{ budget }}.
+{% endif %}
+
+{% if title == 'oathbreaker' %}
+<a href='edh'>edh</a>
+<br>
+Deck price doesn't include planeswalker, planeswalker budget is $10, main deck budget is {{ budget }}.
+{% endif %}
+<h2>Average deck price is {% if average_price > budget %}
+<span style="color:rgb(209, 0, 0); font-weight: bold;">
+  {% else %}
+  <span style="color:rgb(88, 155, 0); font-weight: bold;">
+    {% endif %}
+    ${{ average_price }}
+  </span> Prices are currently calculated using {{price_period}} months of data.</h2>
+</center>
+
+
 <table>
     <tr>
         <th></th>
         <thead>
         <th></th>
         <th>Price</th>
-        <th>Week +/-</th>
+        <th>Month +/-</th>
         <th>Deck Name</th>
         <th>User</th>
         <th>Commander</th>
         <th>Commander<br>Price</th>
-        <th>Card<br>Count</th>
+        <!-- <th>Card<br>Count</th> -->
         <th>Last Refresh</th>
+        <th>Season<br>Price</th>
         </thead>
     </tr>
     {% for result in results %}
@@ -70,7 +90,7 @@ The price is also averaged over prices since 11/11/2020.</h2>
         <td>
           <a href="deck?archidekt_id={{ result['id'] }}">
           <span id="deck-{{ result['id'] }}-deck_price">
-            {% if result['deck_price'] > 35.0 %}
+            {% if result['deck_price'] > budget %}
             <div style="color:rgb(209, 0, 0); font-weight: bold;">
             {% else %}
             <div style="color:rgb(88, 155, 0); font-weight: bold;">
@@ -106,15 +126,32 @@ The price is also averaged over prices since 11/11/2020.</h2>
           <!-- </a> -->
         </td>
         <td>
+          {% if title == 'oathbreaker' %}
           <a href="https://oathbreaker.edhrec.com/oathbreakers/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
+          {% else %}
+          <a href="https://edhrec.com/commanders/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
+          {% endif %}
             <span id="deck-{{ result['id'] }}-commander">
               {{ result['commander'] }}
             </span>
           </a>
         </td>
         <td><span id="deck-{{ result['id'] }}-commander_price">{{ result['commander_price'] }}</span></td>
-        <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td>
+        <!-- <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td> -->
         <td><span id="deck-{{ result['id'] }}-modified">{{ result['modified'][:16] }}</span></td>
+        <td>
+          <!-- <a href="deck?archidekt_id={{ result['id'] }}"> -->
+          <span id="deck-{{ result['id'] }}-deck_price-season">
+            {% if result['deck_price_season'] > budget %}
+            <div style="color:rgb(209, 0, 0); font-weight: bold;">
+              {% else %}
+              <div style="color:rgb(88, 155, 0); font-weight: bold;">
+                {% endif %}
+                ${{ result['deck_price_season'] }}
+              </div>
+          </span>
+          <!-- </a> -->
+        </td>
     </tr>
     {% endfor %}
 </table>
@@ -140,10 +177,16 @@ The price is also averaged over prices since 11/11/2020.</h2>
             $('#deck-' + id + '-refresh').html('<img src="{{ url_for('static', filename='loading.gif') }}">');
             $.post('/update_deck_id', {'id' : id}).done(function(response) {
                 const deck_price = response['deck_price']
-                if (deck_price > 35.0) {
+                const deck_price_season = response['deck_price_season']
+                if (deck_price > {{ budget }}) {
                   $('#deck-' + id + '-deck_price').html('<div style="color:red; font-weight: bold;"> $' + response['deck_price'] + '</div>')
                 } else {
                   $('#deck-' + id + '-deck_price').html('<div style="color:green; font-weight: bold;"> $' + response['deck_price'] + '</div>')
+                }
+                if (deck_price_season > {{ budget }}) {
+                  $('#deck-' + id + '-deck_price-season').html('<div style="color:red; font-weight: bold;"> $' + response['deck_price_season'] + '</div>')
+                } else {
+                  $('#deck-' + id + '-deck_price-season').html('<div style="color:green; font-weight: bold;"> $' + response['deck_price_season'] + '</div>')
                 }
                 $('#deck-' + id + '-commander_price').text(response['commander_price'])
                 $('#deck-' + id + '-modified').text(response['modified'].substr(0,16))
