@@ -12,9 +12,13 @@ from wtforms.validators import DataRequired
 from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import request
+from socket import gethostname
 
 PRICE_PERIOD = 12
-FIRESTORE_COLLECTION = u'deck-ids'
+if gethostname() == 'neurobeast':
+    FIRESTORE_COLLECTION = u'deck-ids-dev'
+else:
+    FIRESTORE_COLLECTION = u'deck-ids'
 
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
@@ -67,18 +71,31 @@ def calculate_price_archidekt(data,url):
         WHERE name IN UNNEST({cards}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
         and TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1+{period} MONTH)) < datetime 
         GROUP BY name, datetime
+        ),
+        season AS (
+        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
+        WHERE name IN UNNEST({cards})
+        and TIMESTAMP('2021-09-01') <= datetime and datetime < TIMESTAMP('2022-01-01')
+        GROUP BY name, datetime
         )
-        SELECT name,AVG(price) as price, AVG(price_lag) as price_lag, AVG(price) - AVG(price_lag) as change FROM shifted_historical
+        SELECT name,
+               AVG(price) as price,
+               AVG(price_lag) as price_lag,
+               AVG(price_season) as price_season,
+               AVG(price) - AVG(price_lag) as change 
+        FROM shifted_historical
         LEFT JOIN historical USING (name,datetime)
+        LEFT JOIN season USING (name,datetime)
         GROUP BY name
         """.format(cards=where_in_statement,period=PRICE_PERIOD)
         print(q)
         print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
-        price_list = historical[['name', 'price', 'price_lag']].sort_values(
+        price_list = historical[['name', 'price', 'price_lag','price_season']].sort_values(
             by='price', ascending=False)
         price_list['price'] = price_list['price'].round(2)
         price_list['price_lag'] = price_list['price_lag'].round(2)
+        price_list['price_season'] = price_list['price_season'].round(2)
         price_list = price_list.round(2).values.tolist()
         flat_price_list = []
         for value in price_list:
@@ -97,7 +114,8 @@ def calculate_price_archidekt(data,url):
                 'id': data['id'],
                 'modified': str(datetime.datetime.today()),
                 'price_list': flat_price_list,
-                'deckFormat': deckFormat
+                'deckFormat': deckFormat,
+                'deck_price_season': round(historical['price_season'].sum(), 2)
                 }
         if deckFormat == 'oathbreaker':
             res['deck_price'] = round(historical['price'][historical.name != commander].sum(), 2)
@@ -189,6 +207,8 @@ def main_page(deckFormat,budget):
                 continue
             average_price += doc['deck_price']
             res.append(doc)
+            if 'deck_price_season' not in doc:
+                doc['deck_price_season'] = 0.00
         if len(res) > 0:
             average_price = average_price/float(len(res))
         else:
