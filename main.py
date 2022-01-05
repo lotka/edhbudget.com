@@ -14,6 +14,7 @@ from firebase_admin import firestore
 from flask import request
 
 PRICE_PERIOD = 12
+FIRESTORE_COLLECTION = u'deck-ids'
 
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
@@ -132,7 +133,7 @@ bigquery_client = bigquery.Client(project='nifty-beast-realm')
 
 @app.route('/price_list', methods=['GET'])
 def api_filter():
-    doc_ref = db.collection(u'deck-ids').document(request.args['archidekt_id'])
+    doc_ref = db.collection(FIRESTORE_COLLECTION).document(request.args['archidekt_id'])
     data = doc_ref.get().to_dict()['price_list']
     res ="""<style>
         table, th, td {
@@ -165,7 +166,7 @@ def update_deck(archidekt_id):
     if deck_request.status_code != 200:
         return False
     else:
-        doc_ref = db.collection(u'deck-ids').document(archidekt_id)
+        doc_ref = db.collection(FIRESTORE_COLLECTION).document(archidekt_id)
         result = calculate_price_archidekt(deck_request.json(),url)
         doc_ref.set(result)
         return result
@@ -179,8 +180,7 @@ def main_page(deckFormat,budget):
         return flask.redirect(flask.url_for(deckFormat))
     else:
         print('FS: deck_ids get')
-        deck_ids_ref = db.collection(
-            u'deck-ids').order_by('deck_price', direction=firestore.Query.DESCENDING)
+        deck_ids_ref = db.collection(FIRESTORE_COLLECTION).order_by('deck_price', direction=firestore.Query.DESCENDING)
         res = []
         average_price = 0
         for doc in deck_ids_ref.stream():
@@ -189,7 +189,10 @@ def main_page(deckFormat,budget):
                 continue
             average_price += doc['deck_price']
             res.append(doc)
-        average_price = average_price/float(len(res))
+        if len(res) > 0:
+            average_price = average_price/float(len(res))
+        else:
+            average_price = 0
         return flask.render_template("index.html",
                                      title=deckFormat,
                                      budget=budget,
@@ -222,7 +225,7 @@ def deck():
             flask.flash('Bad archidekt URL! {}'.format(form.url.data))
         return flask.redirect(flask.url_for('main'))
     else:
-        doc_ref = db.collection(u'deck-ids').document(request.args['archidekt_id'])
+        doc_ref = db.collection(FIRESTORE_COLLECTION).document(request.args['archidekt_id'])
         data = doc_ref.get().to_dict()['price_list']
         print(data)
         res = []

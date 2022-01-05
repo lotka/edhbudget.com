@@ -77,7 +77,7 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
         <th>User</th>
         <th>Commander</th>
         <th>Commander<br>Price</th>
-        <th>Card<br>Count</th>
+        <!-- <th>Card<br>Count</th> -->
         <th>Last Refresh</th>
         </thead>
     </tr>
@@ -136,7 +136,7 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
           </a>
         </td>
         <td><span id="deck-{{ result['id'] }}-commander_price">{{ result['commander_price'] }}</span></td>
-        <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td>
+        <!-- <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td> -->
         <td><span id="deck-{{ result['id'] }}-modified">{{ result['modified'][:16] }}</span></td>
     </tr>
     {% endfor %}
