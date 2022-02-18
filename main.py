@@ -198,7 +198,7 @@ def main_page(deckFormat,budget):
         return flask.redirect(flask.url_for(deckFormat))
     else:
         print('FS: deck_ids get')
-        deck_ids_ref = db.collection(FIRESTORE_COLLECTION).order_by('deck_price', direction=firestore.Query.DESCENDING)
+        deck_ids_ref = db.collection(FIRESTORE_COLLECTION).order_by('owner', direction=firestore.Query.DESCENDING)
         res = []
         average_price = 0
         for doc in deck_ids_ref.stream():
