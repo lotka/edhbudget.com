@@ -81,7 +81,7 @@ def calculate_price_archidekt(data,url):
         season_new AS (
         SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season_new FROM `nifty-beast-realm.magic.scryfall-prices`
         WHERE name IN UNNEST({cards})
-        and TIMESTAMP('2022-01-01') <= datetime and datetime < TIMESTAMP('2022-03-09')
+        and TIMESTAMP('2022-02-20') <= datetime and datetime < TIMESTAMP('2022-03-09')
         GROUP BY name, datetime
         )
         SELECT name,
@@ -92,7 +92,7 @@ def calculate_price_archidekt(data,url):
         FROM shifted_historical
         LEFT JOIN historical USING (name,datetime)
         LEFT JOIN season USING (name,datetime)
-        LEFT JOIN season_new USING (name,datetime)
+        FULL OUTER JOIN season_new USING (name,datetime)
         GROUP BY name
         """.format(cards=where_in_statement,period=PRICE_PERIOD)
         print(q)
@@ -107,7 +107,7 @@ def calculate_price_archidekt(data,url):
         flat_price_list = []
         for value in price_list:
             flat_price_list.append(value[0])
-            flat_price_list.append(value[1])
+            flat_price_list.append(value[3])
         
 
         res =  {'name': data['name'],
@@ -253,13 +253,12 @@ def deck():
     else:
         doc_ref = db.collection(FIRESTORE_COLLECTION).document(request.args['archidekt_id'])
         data = doc_ref.get().to_dict()['price_list']
-        print(data)
         res = []
-        for i in range(0, len(data), 3):
-            a,b,c = data[i],float(data[i+1]), float(data[i+2])
+        for i in range(0, len(data), 2):
+            print(data)
+            a,b = data[i],float(data[i+1])
             res.append([data[i],
-                        data[i+1], data[i+2],
-                        100*round((data[i+1] - data[i+2])/data[i+1], 2)])
+                        data[i+1]])
         return flask.render_template("deck.html",
                                      title='Oathy Budgets',
                                      results=res,
