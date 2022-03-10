@@ -53,16 +53,12 @@ The price is also averaged over prices since 11/11/2020.</h2>
         <thead>
         <th>Card</th>
         <th>Price</th>
-        <th>Last Month Price</th>
-        <th>% Change</th>
         </thead>
     </tr>
     {% for result in results %}
     <tr>
         <td><span >{{ result[0] }}</span></td>
         <td><span>{{ result[1] }}</span></td>
-        <td><span>{{ result[2] }}</span></td>
-        <td><span>{{ result[3] }}</span></td>
     </tr>
     {% endfor %}
 </table>

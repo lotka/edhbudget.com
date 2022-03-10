@@ -15,7 +15,7 @@ from flask import request
 from socket import gethostname
 
 PRICE_PERIOD = 12
-if gethostname() == 'neurobeast':
+if gethostname() == 'LT40408':
     FIRESTORE_COLLECTION = u'deck-ids-dev'
 else:
     FIRESTORE_COLLECTION = u'deck-ids'
@@ -79,7 +79,7 @@ def calculate_price_archidekt(data,url):
         GROUP BY name, datetime
         ),
         season_new AS (
-        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
+        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season_new FROM `nifty-beast-realm.magic.scryfall-prices`
         WHERE name IN UNNEST({cards})
         and TIMESTAMP('2022-01-01') <= datetime and datetime < TIMESTAMP('2022-03-09')
         GROUP BY name, datetime
@@ -87,7 +87,7 @@ def calculate_price_archidekt(data,url):
         SELECT name,
                AVG(price) as price,
                AVG(price_lag) as price_lag,
-               IFNULL(AVG(season.price_season),AVG(season_new.price_season)) as price_season,
+               IFNULL(AVG(price_season),AVG(price_season_new)) as price_season,
                AVG(price) - AVG(price_lag) as change 
         FROM shifted_historical
         LEFT JOIN historical USING (name,datetime)
@@ -98,7 +98,7 @@ def calculate_price_archidekt(data,url):
         print(q)
         print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
-        price_list = historical[['name', 'price', 'price_lag','price_season']].sort_values(
+        price_list = historical[['name','price','price_lag','price_season']].sort_values(
             by='price', ascending=False)
         price_list['price'] = price_list['price'].round(2)
         price_list['price_lag'] = price_list['price_lag'].round(2)
@@ -108,7 +108,6 @@ def calculate_price_archidekt(data,url):
         for value in price_list:
             flat_price_list.append(value[0])
             flat_price_list.append(value[1])
-            flat_price_list.append(value[2])
         
 
         res =  {'name': data['name'],

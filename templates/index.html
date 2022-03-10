@@ -71,15 +71,13 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
         <th></th>
         <thead>
         <th></th>
-        <th>Price</th>
-        <th>Month +/-</th>
+        <th>Season<br>Price</th>
         <th>Deck Name</th>
         <th>User</th>
         <th>Commander</th>
         <th>Commander<br>Price</th>
         <!-- <th>Card<br>Count</th> -->
         <th>Last Refresh</th>
-        <th>Season<br>Price</th>
         </thead>
     </tr>
     {% for result in results %}
@@ -89,24 +87,17 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
       </a></td>
         <td>
           <a href="deck?archidekt_id={{ result['id'] }}">
-          <span id="deck-{{ result['id'] }}-deck_price">
-            {% if result['deck_price'] > budget %}
+          <span id="deck-{{ result['id'] }}-deck_price-season">
+            {% if result['deck_price_season'] > budget %}
             <div style="color:rgb(209, 0, 0); font-weight: bold;">
             {% else %}
             <div style="color:rgb(88, 155, 0); font-weight: bold;">
             {% endif %}
-            ${{ result['deck_price'] }}
+            ${{ result['deck_price_season'] }}
           </div>
         </span>
       </a>
       </td>
-        <td>
-          <!-- <div style="text-align:center"> -->
-            <span id="deck-{{ result['change'] }}-modified">
-              {{ (100*result['deck_price_change']/result['deck_price']) | round(2) }}%
-            </span>
-          <!-- </div> -->
-        </td>
         <div class='deck-ids' hidden>{{ result['id'] }}</div>
         <td>
           <a href="{{ result['url']}}">
@@ -139,19 +130,6 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
         <td><span id="deck-{{ result['id'] }}-commander_price">{{ result['commander_price'] }}</span></td>
         <!-- <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td> -->
         <td><span id="deck-{{ result['id'] }}-modified">{{ result['modified'][:16] }}</span></td>
-        <td>
-          <!-- <a href="deck?archidekt_id={{ result['id'] }}"> -->
-          <span id="deck-{{ result['id'] }}-deck_price-season">
-            {% if result['deck_price_season'] > budget %}
-            <div style="color:rgb(209, 0, 0); font-weight: bold;">
-              {% else %}
-              <div style="color:rgb(88, 155, 0); font-weight: bold;">
-                {% endif %}
-                ${{ result['deck_price_season'] }}
-              </div>
-          </span>
-          <!-- </a> -->
-        </td>
     </tr>
     {% endfor %}
 </table>
@@ -178,11 +156,6 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
             $.post('/update_deck_id', {'id' : id}).done(function(response) {
                 const deck_price = response['deck_price']
                 const deck_price_season = response['deck_price_season']
-                if (deck_price > {{ budget }}) {
-                  $('#deck-' + id + '-deck_price').html('<div style="color:red; font-weight: bold;"> $' + response['deck_price'] + '</div>')
-                } else {
-                  $('#deck-' + id + '-deck_price').html('<div style="color:green; font-weight: bold;"> $' + response['deck_price'] + '</div>')
-                }
                 if (deck_price_season > {{ budget }}) {
                   $('#deck-' + id + '-deck_price-season').html('<div style="color:red; font-weight: bold;"> $' + response['deck_price_season'] + '</div>')
                 } else {
