@@ -75,13 +75,13 @@ def calculate_price_archidekt(data,url):
         season AS (
         SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
         WHERE name IN UNNEST({cards})
-        and TIMESTAMP('2021-09-01') <= datetime and datetime < TIMESTAMP('2022-01-01')
+        and TIMESTAMP('2022-01-01') <= datetime and datetime < TIMESTAMP('2022-04-01')
         GROUP BY name, datetime
         ),
         season_new AS (
         SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season_new FROM `nifty-beast-realm.magic.scryfall-prices`
         WHERE name IN UNNEST({cards})
-        and TIMESTAMP('2022-02-23') <= datetime and datetime < TIMESTAMP('2022-03-09')
+        and TIMESTAMP('2022-04-01') <= datetime and datetime < TIMESTAMP('2022-07-01')
         GROUP BY name, datetime
         )
         SELECT name,
