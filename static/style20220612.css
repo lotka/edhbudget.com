@@ -42,7 +42,7 @@ header {
   /* height: 400px; */
   width: 100vw;
   text-align: center;
-  padding-top: 50px;
+  /* padding-top: 50px; */
   /* position: absolute;
   top: 350px;
   left: 50%;
@@ -122,13 +122,13 @@ table {
     width: 85vw;
     /* border: 3px solid rgb(107, 73, 0); */
     margin: 40px auto;
-  
+    border-color: red;
   }
 
 
   th, td {
     text-align: left;
-    padding: 9px 15px;
+    padding: 2px 15px;
   }
 
   td {
@@ -209,12 +209,12 @@ only screen and (max-width: 760px),
 		left: -9999px;
 	}
 	
-	tr { border: 1px solid #ccc; }
+	tr { border: 1px solid #171717; }
 	
 	td { 
 		/* Behave  like a "row" */
-		border: none;
-		border-bottom: 1px solid #eee; 
+		/* border: none; */
+		border-bottom: 1px solid #171717; 
 		position: relative;
 		padding-left: 50%; 
 	}
