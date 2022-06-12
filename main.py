@@ -13,9 +13,13 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import request
 from socket import gethostname
+import sys
 
 PRICE_PERIOD = 12
-if True:
+DEBUG = len(sys.argv) > 1 and sys.argv[1] == 'dev'
+
+print(sys.argv)
+if DEBUG:
     FIRESTORE_COLLECTION = u'deck-ids-dev'
 else:
     FIRESTORE_COLLECTION = u'deck-ids'
@@ -188,6 +192,7 @@ def update_deck(archidekt_id):
     url = 'https://archidekt.com/api/decks/{}/'.format(archidekt_id)
     deck_request = requests.get(url)
     if deck_request.status_code != 200:
+        db.collection(FIRESTORE_COLLECTION).document(archidekt_id).delete()
         return False
     else:
         doc_ref = db.collection(FIRESTORE_COLLECTION).document(archidekt_id)
@@ -196,7 +201,7 @@ def update_deck(archidekt_id):
         return result
 
 
-def main_page(deckFormat,budget,experimental=True):
+def main_page(deckFormat,budget,experimental=False):
     form = SubmitForm()
     if form.validate_on_submit():
         if not update_deck(form.url.data.split('/')[-1].split('#')[0]):
@@ -213,9 +218,11 @@ def main_page(deckFormat,budget,experimental=True):
                 continue
             if "[P]" not in doc['name'] and not experimental:
                 continue
+            if not experimental:
+                doc['name'] = doc['name'].replace("[P]", "")
             average_price += doc['deck_price_season']
-            print(doc['name'], doc['deck_price_season'])
             res.append(doc)
+            print(doc)
             if 'deck_price_season' not in doc:
                 doc['deck_price_season'] = 0.00
         if len(res) > 0:
@@ -274,4 +281,4 @@ def deck():
 
 if __name__ == "__main__":
     
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=DEBUG)
