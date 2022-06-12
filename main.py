@@ -15,7 +15,7 @@ from flask import request
 from socket import gethostname
 
 PRICE_PERIOD = 12
-if gethostname() == 'LT40408':
+if True:
     FIRESTORE_COLLECTION = u'deck-ids-dev'
 else:
     FIRESTORE_COLLECTION = u'deck-ids'
@@ -196,7 +196,7 @@ def update_deck(archidekt_id):
         return result
 
 
-def main_page(deckFormat,budget):
+def main_page(deckFormat,budget,experimental=True):
     form = SubmitForm()
     if form.validate_on_submit():
         if not update_deck(form.url.data.split('/')[-1].split('#')[0]):
@@ -204,14 +204,17 @@ def main_page(deckFormat,budget):
         return flask.redirect(flask.url_for(deckFormat))
     else:
         print('FS: deck_ids get')
-        deck_ids_ref = db.collection(FIRESTORE_COLLECTION).order_by('owner', direction=firestore.Query.DESCENDING)
+        deck_ids_ref = db.collection(FIRESTORE_COLLECTION).order_by('modified', direction=firestore.Query.DESCENDING)
         res = []
         average_price = 0
         for doc in deck_ids_ref.stream():
             doc = doc.to_dict()
             if doc['deckFormat'] != deckFormat:
                 continue
-            average_price += doc['deck_price']
+            if "[P]" not in doc['name'] and not experimental:
+                continue
+            average_price += doc['deck_price_season']
+            print(doc['name'], doc['deck_price_season'])
             res.append(doc)
             if 'deck_price_season' not in doc:
                 doc['deck_price_season'] = 0.00
@@ -221,6 +224,7 @@ def main_page(deckFormat,budget):
             average_price = 0
         return flask.render_template("index.html",
                                      title=deckFormat,
+                                     experimental=experimental,
                                      budget=budget,
                                      average_price=round(average_price,2),
                                      price_period=PRICE_PERIOD,
@@ -229,19 +233,21 @@ def main_page(deckFormat,budget):
                                      update_form=UpdateForm())
 
 
-@app.route("/oathbreaker", methods=['GET', 'POST'])
-def oathbreaker():
-    return main_page('oathbreaker',budget=35)
-
-
 @app.route("/", methods=['GET', 'POST'])
 def main():
     return main_page('edh', budget=60)
 
+@app.route("/oathbreaker", methods=['GET', 'POST'])
+def oathbreaker():
+    return main_page('oathbreaker',budget=35)
+
 @app.route("/edh", methods=['GET', 'POST'])
 def edh():
-    return main_page('edh', budget=60)
+    return main_page('edh', budget=60, experimental=False)
 
+@app.route("/edh-experimental", methods=['GET', 'POST'])
+def edh_experimental():
+    return main_page('edh', budget=60,experimental=True)
 
 @app.route("/deck", methods=['GET', 'POST'])
 def deck():
