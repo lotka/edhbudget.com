@@ -64,19 +64,7 @@ def calculate_price_archidekt(data,url):
         where_in_statement = where_in_statement[:-2] + ']'
 
         q = """
-        WITH historical AS (
-        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price FROM `nifty-beast-realm.magic.scryfall-prices`
-        WHERE name IN UNNEST({cards})
-        and TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL {period} MONTH)) < datetime 
-        GROUP BY name, datetime
-        ),
-        shifted_historical AS (
-        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_lag FROM `nifty-beast-realm.magic.scryfall-prices`
-        WHERE name IN UNNEST({cards}) and datetime < TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
-        and TIMESTAMP(DATE_SUB(CURRENT_DATE(), INTERVAL 1+{period} MONTH)) < datetime 
-        GROUP BY name, datetime
-        ),
-        season AS (
+        WITH season AS (
         SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
         WHERE name IN UNNEST({cards})
         and TIMESTAMP('2022-04-01') <= datetime and datetime < TIMESTAMP('2022-09-01')
@@ -89,29 +77,26 @@ def calculate_price_archidekt(data,url):
         GROUP BY name, datetime
         )
         SELECT name,
-               AVG(price) as price,
-               AVG(price_lag) as price_lag,
-               IFNULL(AVG(price_season),AVG(price_season_new)) as price_season,
-               AVG(price) - AVG(price_lag) as change 
-        FROM shifted_historical
-        LEFT JOIN historical USING (name,datetime)
-        LEFT JOIN season USING (name,datetime)
+               AVG(price_season) as price_season,
+               AVG(price_season_new) as price_season_new,
+               IFNULL(AVG(price_season),AVG(price_season_new)) as price_season_combined,
+        FROM season
         FULL OUTER JOIN season_new USING (name,datetime)
         GROUP BY name
         """.format(cards=where_in_statement,period=PRICE_PERIOD)
         print(q)
         print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
-        price_list = historical[['name','price','price_lag','price_season']].sort_values(
-            by='price_season', ascending=False)
-        price_list['price'] = price_list['price'].round(2)
-        price_list['price_lag'] = price_list['price_lag'].round(2)
+        price_list = historical[['name','price_season','price_season_new','price_season_combined']].sort_values(
+            by='price_season_combined', ascending=False)
         price_list['price_season'] = price_list['price_season'].round(2)
+        price_list['price_season_new'] = price_list['price_season_new'].round(2)
         price_list = price_list.round(2).values.tolist()
         flat_price_list = []
         for value in price_list:
             flat_price_list.append(value[0])
-            flat_price_list.append(value[3])
+            flat_price_list.append(value[1])
+            flat_price_list.append(value[2])
         
 
         res =  {'name': data['name'],
@@ -119,33 +104,36 @@ def calculate_price_archidekt(data,url):
                 'url': url.replace('/api', ''),
                 'commander': commander,
                 'cards': len(historical),
-                'commander_price' : round(historical['price'][historical.name == commander].sum(), 2),
-                'free_cards': int((historical['price'] == 0).sum()),
+                'commander_price' : round(historical['price_season_combined'][historical.name == commander].sum(), 2),
+                'free_cards': int((historical['price_season_combined'] == 0).sum()),
                 'id': data['id'],
                 'modified': str(datetime.datetime.today()),
                 'price_list': flat_price_list,
                 'deckFormat': deckFormat,
-                'deck_price_season': round(historical['price_season'].sum(), 2)
+                'deck_price_season': round(historical['price_season_combined'].sum(), 2),
+                'deck_price_season_new': round(historical['price_season_new'].sum(), 2)
                 }
         if deckFormat == 'oathbreaker':
-            res['deck_price'] = round(historical['price'][historical.name != commander].sum(), 2)
-            res['deck_price_change'] = round(historical['change'][historical.name != commander].sum(), 2)
+            res['deck_price'] = round(historical['price_season_combined'][historical.name != commander].sum(), 2)
+            res['deck_price_change'] = 0
         else:
-            res['deck_price'] = round(historical['price'].sum(), 2)
-            res['deck_price_change'] = round(historical['change'].sum(), 2)
+            res['deck_price'] = round(historical['price_season_combined'].sum(), 2)
+            res['deck_price_change'] = 0
         return res
     else:
         return {'name': data['name'],
                 'owner': data['owner']['username'],
                 'url': url.replace('/api', ''),
                 'commander': commander,
-                'commander_price': 0,
-                'deck_price': 0.0000000000000001,
-                'deck_price_change': 0,
                 'cards': 0,
+                'commander_price': 0,
                 'free_cards': 0,
                 'id': data['id'],
                 'modified': str(datetime.datetime.today()),
+                'price_list' : [],
+                'deckFormat' : 'n/a',
+                'deck_price_season': 0.0000000000000001,
+                'deck_price_season_new': 0.0000000000000001,
                 }
 
 
@@ -265,16 +253,18 @@ def deck():
         return flask.redirect(flask.url_for('main'))
     else:
         doc_ref = db.collection(FIRESTORE_COLLECTION).document(request.args['archidekt_id'])
-        data = doc_ref.get().to_dict()['price_list']
+        data = doc_ref.get().to_dict()
+        price_list = data['price_list']
         res = []
-        for i in range(0, len(data), 2):
-            print(data)
-            a,b = data[i],float(data[i+1])
-            res.append([data[i],
-                        data[i+1]])
+        for i in range(0, len(price_list), 3):
+            print(price_list)
+            res.append([price_list[i],
+                        price_list[i+1],
+                        price_list[i+2]])
         return flask.render_template("deck.html",
                                      title='Oathy Budgets',
                                      results=res,
+                                     deck_name=data['name'],
                                      form=form,
                                      update_form=UpdateForm())
 

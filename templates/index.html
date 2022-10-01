@@ -8,6 +8,24 @@
 <script data-ad-client="ca-pub-1384705583832067" async
   src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
 <link href="{{ url_for('static', filename='style20220612-2.css') }}" rel="stylesheet" type="text/css" > 
+
+<style>
+  @media 
+only screen and (max-width: 760px),
+(min-device-width: 768px) and (max-device-width: 1024px)  {
+
+/*
+Label the data
+*/
+td:nth-of-type(1):before { content: "Refresh"; }
+td:nth-of-type(2):before { content: "Price"; }
+td:nth-of-type(3):before { content: "Deck Name"; }
+td:nth-of-type(4):before { content: "User"; }
+td:nth-of-type(5):before { content: "Commander"; }
+td:nth-of-type(6):before { content: "Commander Price"; }
+td:nth-of-type(7):before { content: "Last Modified"; }
+}
+</style>
 <div id="gap"></div>
 <header>
   <!-- <img id="banner" src="https://static1.squarespace.com/static/551a2e0ee4b0bf065e1b3b3f/551a6237e4b02e9aae0cd8be/57d9347dd1758e7b8ab50112/1473889192651/mtgmasterpiecetheaterbanner.jpg?format=1500w"></img> -->
@@ -77,6 +95,7 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
         <thead>
         <th></th>
         <th>Season<br>Price</th>
+        <th>Next Season<br>Price</th>
         <th>Deck Name</th>
         <th>User</th>
         <th>Commander</th>
@@ -90,19 +109,34 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
       <td><a href="javascript:update_deck_id({{ result['id'] }});">
         <span id="deck-{{ result['id'] }}-refresh">🔄</span>
       </a></td>
-        <td>
-          <a href="deck?archidekt_id={{ result['id'] }}">
-          <span id="deck-{{ result['id'] }}-deck_price-season">
-            {% if result['deck_price_season'] > budget %}
-            <div style="color:rgb(209, 0, 0); font-weight: bold;">
-            {% else %}
-            <div style="color:rgb(88, 155, 0); font-weight: bold;">
-            {% endif %}
-            ${{ result['deck_price_season'] }}
-          </div>
-        </span>
-      </a>
-      </td>
+
+
+      
+      <td>
+        <a href="deck?archidekt_id={{ result['id'] }}">
+        <span id="deck-{{ result['id'] }}-deck_price-season">
+          {% if result['deck_price_season'] > budget %}
+          <div style="color:rgb(209, 0, 0); font-weight: bold;">
+          {% else %}
+          <div style="color:rgb(88, 155, 0); font-weight: bold;">
+          {% endif %}
+          ${{ result['deck_price_season'] }}
+        </div>
+      </span>
+    </a>
+    </td>
+
+      
+    <td>
+      <a href="deck?archidekt_id={{ result['id'] }}">
+      <span id="deck-{{ result['id'] }}-deck_price-season-new">
+        ${{ result['deck_price_season_new'] }}
+    </span>
+  </a>
+  </td>
+
+
+
         <div class='deck-ids' hidden>{{ result['id'] }}</div>
         <td>
           <a href="{{ result['url']}}">
@@ -159,13 +193,13 @@ Deck price doesn't include planeswalker, planeswalker budget is $10, main deck b
         function update_deck_id(id) {
             $('#deck-' + id + '-refresh').html('<img src="{{ url_for('static', filename='loading.gif') }}">');
             $.post('/update_deck_id', {'id' : id}).done(function(response) {
-                const deck_price = response['deck_price']
                 const deck_price_season = response['deck_price_season']
                 if (deck_price_season > {{ budget }}) {
                   $('#deck-' + id + '-deck_price-season').html('<div style="color:red; font-weight: bold;"> $' + response['deck_price_season'] + '</div>')
                 } else {
                   $('#deck-' + id + '-deck_price-season').html('<div style="color:green; font-weight: bold;"> $' + response['deck_price_season'] + '</div>')
                 }
+                $('#deck-' + id + '-deck_price-season-new').text('$'+response['deck_price_season_new'])
                 $('#deck-' + id + '-commander_price').text(response['commander_price'])
                 $('#deck-' + id + '-modified').text(response['modified'].substr(0,16))
                 $('#deck-' + id + '-refresh').text('🔄');
