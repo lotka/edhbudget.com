@@ -18,7 +18,6 @@ import sys
 PRICE_PERIOD = 12
 DEBUG = len(sys.argv) > 1 and sys.argv[1] == 'dev'
 
-print(sys.argv)
 if DEBUG:
     FIRESTORE_COLLECTION = u'deck-ids-dev'
 else:
@@ -84,8 +83,6 @@ def calculate_price_archidekt(data,url):
         FULL OUTER JOIN season_new USING (name,datetime)
         GROUP BY name
         """.format(cards=where_in_statement,period=PRICE_PERIOD)
-        print(q)
-        print('BQ: get prices')
         historical = pd.read_gbq(q, project_id="nifty-beast-realm")
         price_list = historical[['name','price_season','price_season_new','price_season_combined']].sort_values(
             by='price_season_combined', ascending=False)
@@ -170,9 +167,7 @@ def api_filter():
 
 @app.route('/update_deck_id', methods=['POST'])
 def update_deck_id():
-    print('start')
     data = update_deck(flask.request.form['id'])
-    print('end')
     return flask.jsonify(data)
 
 
@@ -189,19 +184,24 @@ def update_deck(archidekt_id):
         return result
 
 
-def main_page(deckFormat,budget,experimental=False):
+def main_page(deckFormat,budget,experimental=False,request=None):
     form = SubmitForm()
     if form.validate_on_submit():
         if not update_deck(form.url.data.split('/')[-1].split('#')[0]):
             flask.flash('Bad archidekt URL! {}'.format(form.url.data))
         return flask.redirect(flask.url_for(deckFormat))
     else:
-        print('FS: deck_ids get')
         deck_ids_ref = db.collection(FIRESTORE_COLLECTION).order_by('modified', direction=firestore.Query.DESCENDING)
         res = []
         average_price = 0
+        owner_filter=None
+        if request:
+            if 'owner' in request.args:
+                owner_filter = request.args['owner']
         for doc in deck_ids_ref.stream():
             doc = doc.to_dict()
+            if owner_filter and doc['owner'] != owner_filter:
+                continue
             if doc['deckFormat'] != deckFormat:
                 continue
             if "[P]" not in doc['name'] and not experimental:
@@ -210,7 +210,6 @@ def main_page(deckFormat,budget,experimental=False):
                 doc['name'] = doc['name'].replace("[P]", "")
             average_price += doc['deck_price_season']
             res.append(doc)
-            print(doc)
             if 'deck_price_season' not in doc:
                 doc['deck_price_season'] = 0.00
         if len(res) > 0:
@@ -230,7 +229,7 @@ def main_page(deckFormat,budget,experimental=False):
 
 @app.route("/", methods=['GET', 'POST'])
 def main():
-    return main_page('edh', budget=60)
+    return main_page('edh', budget=60, experimental=False,request=request)
 
 @app.route("/oathbreaker", methods=['GET', 'POST'])
 def oathbreaker():
@@ -238,11 +237,11 @@ def oathbreaker():
 
 @app.route("/edh", methods=['GET', 'POST'])
 def edh():
-    return main_page('edh', budget=60, experimental=False)
+    return main_page('edh', budget=60, experimental=False,request=request)
 
 @app.route("/edh-experimental", methods=['GET', 'POST'])
 def edh_experimental():
-    return main_page('edh', budget=60,experimental=True)
+    return main_page('edh', budget=60,experimental=True,request=request)
 
 @app.route("/deck", methods=['GET', 'POST'])
 def deck():
@@ -257,7 +256,6 @@ def deck():
         price_list = data['price_list']
         res = []
         for i in range(0, len(price_list), 3):
-            print(price_list)
             res.append([price_list[i],
                         price_list[i+1],
                         price_list[i+2]])
