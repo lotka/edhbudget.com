@@ -62,28 +62,17 @@ def calculate_price_archidekt(data,url):
             where_in_statement += "\"{}\", ".format(card)
         where_in_statement = where_in_statement[:-2] + ']'
 
-        q = """
-        WITH season AS (
-        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
-        WHERE name IN UNNEST({cards})
-        and TIMESTAMP('2022-04-01') <= datetime and datetime < TIMESTAMP('2022-09-01')
-        GROUP BY name, datetime
-        ),
-        season_new AS (
-        SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season_new FROM `nifty-beast-realm.magic.scryfall-prices`
-        WHERE name IN UNNEST({cards})
-        and TIMESTAMP('2022-09-01') <= datetime and datetime < TIMESTAMP('2023-01-01')
-        GROUP BY name, datetime
-        )
-        SELECT name,
-               AVG(price_season) as price_season,
-               AVG(price_season_new) as price_season_new,
-               IFNULL(AVG(price_season),AVG(price_season_new)) as price_season_combined,
-        FROM season
-        FULL OUTER JOIN season_new USING (name,datetime)
-        GROUP BY name
-        """.format(cards=where_in_statement,period=PRICE_PERIOD)
-        historical = pd.read_gbq(q, project_id="nifty-beast-realm")
+        card_prices = []
+        for card in cards:
+            doc_ref = db.collection(u'card-prices').document(card.replace('//','---'))
+            doc = doc_ref.get()
+            if doc.exists:
+                card_prices.append(doc.to_dict())
+            else:
+                print(card,'MISSING!!')
+            
+        historical = pd.DataFrame(card_prices)
+
         price_list = historical[['name','price_season','price_season_new','price_season_combined']].sort_values(
             by='price_season_combined', ascending=False)
         price_list['price_season'] = price_list['price_season'].round(2)
