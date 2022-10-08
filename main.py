@@ -1,4 +1,3 @@
-import json
 import flask
 import pandas as pd
 import requests
@@ -12,10 +11,8 @@ from wtforms.validators import DataRequired
 from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import request
-from socket import gethostname
 import sys
 
-PRICE_PERIOD = 12
 DEBUG = len(sys.argv) > 1 and sys.argv[1] == 'dev'
 
 if DEBUG:
@@ -132,33 +129,10 @@ bootstrap = Bootstrap(app)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
 bigquery_client = bigquery.Client(project='nifty-beast-realm')
 
-
-@app.route('/price_list', methods=['GET'])
-def api_filter():
-    doc_ref = db.collection(FIRESTORE_COLLECTION).document(request.args['archidekt_id'])
-    data = doc_ref.get().to_dict()['price_list']
-    res ="""<style>
-        table, th, td {
-        border: 0px solid black;
-        font-size: 12px;
-        font-weight: normal;
-        font-family: Arial, Helvetica, sans-serif;
-        }
-        </style>
-        <table>"""
-    for i in range(0,len(data),2):
-        res += '<tr> <th>{}</th> <th><b>{}</b></th> <th>{}</th> </tr>'.format(
-            i //2 + 1, data[i], data[i+1])
-    res += '</table>'
-    return res
-    
-
-
 @app.route('/update_deck_id', methods=['POST'])
 def update_deck_id():
     data = update_deck(flask.request.form['id'])
     return flask.jsonify(data)
-
 
 def update_deck(archidekt_id):
     url = 'https://archidekt.com/api/decks/{}/'.format(archidekt_id)
@@ -171,7 +145,6 @@ def update_deck(archidekt_id):
         result = calculate_price_archidekt(deck_request.json(),url)
         doc_ref.set(result)
         return result
-
 
 def main_page(deckFormat,budget,experimental=False,request=None):
     form = SubmitForm()
@@ -210,11 +183,9 @@ def main_page(deckFormat,budget,experimental=False,request=None):
                                      experimental=experimental,
                                      budget=budget,
                                      average_price=round(average_price,2),
-                                     price_period=PRICE_PERIOD,
                                      results=res,
                                      form=form,
                                      update_form=UpdateForm())
-
 
 @app.route("/", methods=['GET', 'POST'])
 def main():
@@ -249,13 +220,11 @@ def deck():
                         price_list[i+1],
                         price_list[i+2]])
         return flask.render_template("deck.html",
-                                     title='Oathy Budgets',
+                                     title='edhbudget',
                                      results=res,
                                      deck_name=data['name'],
                                      form=form,
                                      update_form=UpdateForm())
 
-
 if __name__ == "__main__":
-    
     app.run(host="0.0.0.0", port=8080, debug=DEBUG)
