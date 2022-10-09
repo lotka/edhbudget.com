@@ -148,6 +148,7 @@ def update_deck(archidekt_id):
 
 def main_page(deckFormat,budget,experimental=False,request=None):
     form = SubmitForm()
+    owners = []
     if form.validate_on_submit():
         if not update_deck(form.url.data.split('/')[-1].split('#')[0]):
             flask.flash('Bad archidekt URL! {}'.format(form.url.data))
@@ -162,6 +163,7 @@ def main_page(deckFormat,budget,experimental=False,request=None):
                 owner_filter = request.args['owner']
         for doc in deck_ids_ref.stream():
             doc = doc.to_dict()
+            owners.append(doc['owner'])
             if owner_filter and doc['owner'] != owner_filter:
                 continue
             if doc['deckFormat'] != deckFormat:
@@ -185,11 +187,23 @@ def main_page(deckFormat,budget,experimental=False,request=None):
                                      average_price=round(average_price,2),
                                      results=res,
                                      form=form,
+                                     owners=list(set(owners)),
                                      update_form=UpdateForm())
 
 @app.route("/", methods=['GET', 'POST'])
 def main():
     return main_page('edh', budget=60, experimental=False,request=request)
+
+@app.route("/beta", methods=['GET', 'POST'])
+def beta():
+    return flask.render_template("beta.html",
+                                 title='edhbudget',
+                                 form=SubmitForm())
+
+@app.route("/faq", methods=['GET', 'POST'])
+def faq():
+    return flask.render_template("faq.html",
+                                 title='faq')
 
 @app.route("/oathbreaker", methods=['GET', 'POST'])
 def oathbreaker():

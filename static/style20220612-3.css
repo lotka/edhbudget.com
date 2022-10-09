@@ -256,7 +256,7 @@ a:hover {
   background-color: black;
 }
 
-form, button, input, select, textarea {
+form, button, input, select, textarea, btn {
   font-family: inherit;
   color: black;
   font-size: 100%;

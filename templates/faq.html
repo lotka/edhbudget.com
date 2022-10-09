@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{% endblock %}
+
+
+{% block content %}
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1384705583832067"
+     crossorigin="anonymous"></script>
+<link href="{{ url_for('static', filename='style20220612-3.css') }}" rel="stylesheet" type="text/css" > 
+<meta name="description" content="Track the prices of your budget edh decks in a stable and easy way.">
+<style>
+  @media 
+only screen and (max-width: 760px),
+(min-device-width: 768px) and (max-device-width: 1024px)  {
+
+/*
+Label the data
+*/
+td:nth-of-type(1):before { content: "Refresh"; }
+td:nth-of-type(2):before { content: "Price"; }
+td:nth-of-type(3):before { content: "Next Season Price"; }
+td:nth-of-type(4):before { content: "Deck Name"; }
+td:nth-of-type(5):before { content: "User"; }
+td:nth-of-type(6):before { content: "Commander"; }
+td:nth-of-type(7):before { content: "Commander Price"; }
+td:nth-of-type(8):before { content: "Last Modified"; }
+}
+</style>
+<div id="gap"></div>
+<header>
+<div class="container">
+<div class="banner-image">
+<div>
+<h1 class="banner-text"> {{ title }}</h1>
+
+</header>
+</left>
+
+
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<ul>
+    {% for message in messages %}
+    <li>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endwith %}
+
+<div class = "text-area" style="text-align: left; background-color: rgb(41, 41, 41); margin-left: 30%; margin-right: 30%; padding: 20px; border: 5px; border-color: rgb(226, 130, 12); padding-left: 40px;">
+
+<h3>Why did you build this?</h3>
+A budget is a great way to keep EDH casual and accessible, however it's really hard to measure how much a deck costs,
+some cards have many different editions 
+and prices change everyday, this tool allows you to get a stable price which only changes if you include the latest cards.
+<h3>How are card prices calculated?</h3>
+The price of a card is the average of cheapest edition of a card on each day.
+<h3>What is a season?</h3>
+Prices are calcuated on a season basis, at the moment there are 3 seasons:
+<li>S1 - January, February, March, April</li>
+<li>S2 - May, June, July, August</li>
+<li>S3 - September, October, November, December</li>
+<h3>What if a card doesn't exist in the last seasons?</h3>
+Then the newer season is used and the card prices will fluctuate
+</div>
+{% endblock %}

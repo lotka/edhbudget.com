@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{% endblock %}
+
+
+{% block content %}
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1384705583832067"
+     crossorigin="anonymous"></script>
+<link href="{{ url_for('static', filename='style20220612-3.css') }}" rel="stylesheet" type="text/css" > 
+<meta name="description" content="Track the prices of your budget edh decks in a stable and easy way.">
+<style>
+  @media 
+only screen and (max-width: 760px),
+(min-device-width: 768px) and (max-device-width: 1024px)  {
+
+/*
+Label the data
+*/
+td:nth-of-type(1):before { content: "Refresh"; }
+td:nth-of-type(2):before { content: "Price"; }
+td:nth-of-type(3):before { content: "Next Season Price"; }
+td:nth-of-type(4):before { content: "Deck Name"; }
+td:nth-of-type(5):before { content: "User"; }
+td:nth-of-type(6):before { content: "Commander"; }
+td:nth-of-type(7):before { content: "Commander Price"; }
+td:nth-of-type(8):before { content: "Last Modified"; }
+}
+</style>
+<div id="gap"></div>
+<header>
+<div class="container">
+<div class="banner-image">
+<div>
+<h1 class="banner-text"> {{ title }}</h1>
+
+</header>
+</left>
+
+
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<ul>
+    {% for message in messages %}
+    <li>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endwith %}
+
+<div class = "text-area" style="text-align: center; background-color: rgb(41, 41, 41); margin-left: 30%; margin-right: 30%; padding: 20px; border: 5px; border-color: rgb(226, 130, 12);">
+
+Edhbudget is an easy way track and compare the values of the decks in your edh playgroup.
+<br>
+<br>
+This makes it easy to set a budget and avoid difficulties with different card editions changing in value over time.
+<br>
+<br>
+See the <a href='faq'>FAQ</a> for more details about how prices are calculated and how seasons work.
+<br>
+<br>
+Add your deck to get started:
+</p>
+</p>
+<form action="" method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <p><br>
+      <b>Add Archidekt URL:</b>
+      {{ form.url(size=32) }} {{ form.submit() }}
+
+  </p>
+</form> 
+</div>
+{% endblock %}

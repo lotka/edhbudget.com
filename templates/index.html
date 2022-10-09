@@ -62,14 +62,12 @@ The price is also averaged over prices since 11/11/2020.</h2> -->
 [ <a href='edh' style="color:rgb(255, 102, 26);">See all [P] decks</a>, 
 <a href='edh-experimental' style="color:rgb(255, 102, 26);">See all decks</a> ]
 <br>[ Filter by: 
-<a href='edh-experimental?owner=xolith' style="color:rgb(142, 128, 255);">xolith</a> | 
-<a href='edh-experimental?owner=jfarley' style="color:rgb(142, 128, 255);">jfarley</a> | 
-<a href='edh-experimental?owner=mbobin' style="color:rgb(142, 128, 255);">mbobin</a> | 
-<a href='edh-experimental?owner=divinginvietnam' style="color:rgb(142, 128, 255);">divinginvietnam</a> | 
-<a href='edh-experimental?owner=Henrydrake' style="color:rgb(142, 128, 255);">Henrydrake</a> | 
-<a href='edh-experimental?owner=Rossenheimer' style="color:rgb(142, 128, 255);">Rossenheimer</a> | 
-<a href='edh-experimental?owner=Mreddie0' style="color:rgb(142, 128, 255);">Mreddie0</a> | 
-<a href='edh-experimental?owner=Zitzewitze' style="color:rgb(142, 128, 255);">Zitzewitze</a> ]
+{% for owner in owners %}
+<a href='edh-experimental?owner=xolith' style="color:rgb(142, 128, 255);">{{owner}}</a> 
+{% if not loop.last %}
+    |
+{% endif %}
+{% endfor %} ]
 
 {% if title == 'edh' %}
 <br>
