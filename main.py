@@ -226,5 +226,9 @@ def deck():
                                      form=form,
                                      update_form=UpdateForm())
 
+@app.route("/robots.txt")
+def robots_dot_txt():
+    return "User-agent: *\nDisallow: /"
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=DEBUG)
