@@ -63,7 +63,7 @@ The price is also averaged over prices since 11/11/2020.</h2> -->
 <a href='edh-experimental' style="color:rgb(255, 102, 26);">See all decks</a> ]
 <br>[ Filter by: 
 {% for owner in owners %}
-<a href='edh-experimental?owner=xolith' style="color:rgb(142, 128, 255);">{{owner}}</a> 
+<a href='edh-experimental?owner={{owner}}' style="color:rgb(142, 128, 255);">{{owner}}</a> 
 {% if not loop.last %}
     |
 {% endif %}
