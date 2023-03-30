@@ -207,7 +207,7 @@ def faq():
 
 @app.route("/oathbreaker", methods=['GET', 'POST'])
 def oathbreaker():
-    return main_page('oathbreaker',budget=35)
+    return main_page('oathbreaker',budget=35, experimental=True)
 
 @app.route("/edh", methods=['GET', 'POST'])
 def edh():
