@@ -68,17 +68,10 @@ The price is also averaged over prices since 11/11/2020.</h2> -->
     |
 {% endif %}
 {% endfor %} ]
-
-{% if title == 'edh' %}
+     
 <br>
 Deck price includes commander, overall budget is ${{ budget }}.
-{% endif %}
 
-{% if title == 'oathbreaker' %}
-<a href='edh'>edh</a>
-<br>
-Deck price doesn't include planeswalker, planeswalker budget is $10, main deck budget is {{ budget }}.
-{% endif %}
 <h2>Average deck price is {% if average_price > budget %}
 <span style="color:rgb(209, 0, 0); font-weight: bold;">
   {% else %}
