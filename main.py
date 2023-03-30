@@ -94,14 +94,10 @@ def calculate_price_archidekt(data,url):
                 'price_list': flat_price_list,
                 'deckFormat': deckFormat,
                 'deck_price_season': round(historical['price_season_combined'].sum(), 2),
-                'deck_price_season_new': round(historical['price_season_new'].sum(), 2)
+                'deck_price_season_new': round(historical['price_season_new'].sum(), 2),
+                'deck_price': round(historical['price_season_combined'].sum(), 2),
+                'deck_price_change': 0
                 }
-        if deckFormat == 'oathbreaker':
-            res['deck_price'] = round(historical['price_season_combined'][historical.name != commander].sum(), 2)
-            res['deck_price_change'] = 0
-        else:
-            res['deck_price'] = round(historical['price_season_combined'].sum(), 2)
-            res['deck_price_change'] = 0
         return res
     else:
         return {'name': data['name'],
