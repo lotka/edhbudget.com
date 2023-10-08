@@ -72,6 +72,7 @@ def calculate_price_archidekt(data,url):
 
         price_list = historical[['name','price_season','price_season_new','price_season_combined']].sort_values(
             by='price_season_combined', ascending=False)
+        price_list['price_season'] = price_list['price_season'].astype(float)
         price_list['price_season'] = price_list['price_season'].round(2)
         price_list['price_season_new'] = price_list['price_season_new'].round(2)
         price_list = price_list.round(2).values.tolist()
