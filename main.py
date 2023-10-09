@@ -36,6 +36,12 @@ firebase_admin.initialize_app(cred, {
 
 db = firestore.client()
 
+def remove_nan(x):
+    if pd.isnull(x):
+        return -1
+    else:
+        return x
+
 def calculate_price_archidekt(data,url):
     commander = 'Commander not found'
     for card in data['cards']:
@@ -77,10 +83,11 @@ def calculate_price_archidekt(data,url):
         price_list['price_season_new'] = price_list['price_season_new'].round(2)
         price_list = price_list.round(2).values.tolist()
         flat_price_list = []
+
         for value in price_list:
-            flat_price_list.append(value[0])
-            flat_price_list.append(value[1])
-            flat_price_list.append(value[2])
+            flat_price_list.append(remove_nan(value[0]))
+            flat_price_list.append(remove_nan(value[1]))
+            flat_price_list.append(remove_nan(value[2]))
         
 
         res =  {'name': data['name'],

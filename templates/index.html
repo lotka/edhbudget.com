@@ -197,6 +197,7 @@ Deck price includes commander, overall budget is ${{ budget }}.
                 $('#deck-' + id + '-modified').text(response['modified'].substr(0,16))
                 $('#deck-' + id + '-refresh').text('🔄');
             }).fail(function(response) {
+              $('#deck-' + id + '-refresh').text('⚠️');
               console.log(response)
             })
         };
