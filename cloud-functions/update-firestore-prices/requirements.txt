@@ -1,0 +1,4 @@
+pandas_gbq
+pandas
+tqdm
+firebase-admin
