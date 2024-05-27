@@ -12,6 +12,7 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import request
 import sys
+from urllib.parse import urlparse
 
 DEBUG = len(sys.argv) > 1 and sys.argv[1] == 'dev'
 
@@ -149,13 +150,30 @@ def update_deck(archidekt_id):
         result = calculate_price_archidekt(deck_request.json(),url)
         doc_ref.set(result)
         return result
+    
+def parse_url(url):
+    o = urlparse(url)
+    split = o.path.split('/')
+    if len(split) < 3:
+        return False
+    archidekt_id = split[2]
+    if not archidekt_id.isdigit():
+        return False
+    return archidekt_id
 
 def main_page(deckFormat,budget,experimental=False,request=None):
     form = SubmitForm()
     owners = []
     if form.validate_on_submit():
-        if not update_deck(form.url.data.split('/')[-1].split('#')[0]):
-            flask.flash('Bad archidekt URL! {}'.format(form.url.data))
+        archidekt_id = parse_url(form.url.data)
+        if archidekt_id:
+            if update_deck(archidekt_id):
+                return flask.redirect(flask.url_for(deckFormat))
+            else:
+                flask.flash('Failed to update deck URL: {}'.format(form.url.data))
+        else:
+            flask.flash('Bad archidekt URL: {}'.format(form.url.data))
+
         return flask.redirect(flask.url_for(deckFormat))
     else:
         deck_ids_ref = db.collection(FIRESTORE_COLLECTION).order_by('modified', direction=firestore.Query.DESCENDING)
