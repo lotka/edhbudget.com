@@ -32,8 +32,6 @@ def main(_):
         'projectId': "nifty-beast-realm",
     })
 
-    db = firestore.client()
-
     FIRESTORE_COLLECTION_CARDS = 'card-prices'
     db = firestore.client()
     batch = db.batch()
@@ -53,3 +51,5 @@ def main(_):
 
         # Commit the batch
         batch.commit()
+
+    return 'OK'

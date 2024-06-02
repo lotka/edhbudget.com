@@ -64,3 +64,5 @@ def main(_):
         df.to_gbq('magic.scryfall-prices',project_id='nifty-beast-realm',if_exists='append')
     else:
         print('Nothing to be done')
+
+    return 'OK'
