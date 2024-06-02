@@ -48,12 +48,12 @@ def main(_):
                 if  prices[k] is not None:
                     new_entry['price_'+k] = float(prices[k])
                 else:
-                    new_entry['price_'+k] = pd.np.nan
+                    new_entry['price_'+k] = np.nan
             new_entry['main_price_usd'] = min_special(prices['usd'],prices['usd_foil'])
             new_entry['main_price_eur'] = min_special(prices['eur'],prices['eur_foil'])
             new_entry['datetime'] = today
             # Remove funny cards
-            if data[i]['set_type'] != 'funny' and any(prices.values()) and 'paper' in data[i]['games']:
+            if any(prices.values()) and 'paper' in data[i]['games']:
                 new_data.append(new_entry)
         
         df = pd.DataFrame(new_data)
