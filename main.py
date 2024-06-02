@@ -2,6 +2,7 @@ import flask
 import pandas as pd
 import requests
 import datetime
+from zoneinfo import ZoneInfo
 import firebase_admin
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
@@ -39,7 +40,7 @@ db = firestore.client()
 
 def remove_nan(x):
     if pd.isnull(x):
-        return -1
+        return 'NEW CARD'
     else:
         return x
 
@@ -73,6 +74,7 @@ def calculate_price_archidekt(data,url):
             if doc.exists:
                 card_prices.append(doc.to_dict())
             else:
+                flask.flash('Missing {}, contact the admin 💀'.format(card))
                 print(card,'MISSING!!')
             
         historical = pd.DataFrame(card_prices)
@@ -125,9 +127,9 @@ def calculate_price_archidekt(data,url):
                 }
 
 
-def price_archidekt(url):
-    data = requests.get(url=url).json()
-    return calculate_price_archidekt(data,url)
+# def price_archidekt(url):
+#     data = requests.get(url=url).json()
+#     return calculate_price_archidekt(data,url)
 
 app = flask.Flask(__name__)
 bootstrap = Bootstrap(app)
@@ -194,6 +196,10 @@ def main_page(deckFormat,budget,experimental=False,request=None):
                 continue
             if not experimental:
                 doc['name'] = doc['name'].replace("[P]", "")
+
+            # Fix timezone to UK
+            doc['modified'] = pd.to_datetime(doc['modified'],utc=True).tz_convert('Europe/London').strftime('%Y-%m-%d %H:%M')
+            
             average_price += doc['deck_price_season']
             res.append(doc)
             if 'deck_price_season' not in doc:

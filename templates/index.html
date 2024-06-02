@@ -161,7 +161,7 @@ Deck price includes commander, overall budget is ${{ budget }}.
         </td>
         <td><span id="deck-{{ result['id'] }}-commander_price">{{ result['commander_price'] }}</span></td>
         <!-- <td><span id="deck-{{ result['id'] }}-cards">{{ result['cards'] }}</span></td> -->
-        <td><span id="deck-{{ result['id'] }}-modified">{{ result['modified'][:16] }}</span></td>
+        <td><span id="deck-{{ result['id'] }}-modified">{{ result['modified'] }}</span></td>
     </tr>
     {% endfor %}
 </table>
