@@ -1,8 +1,11 @@
+import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 import firebase_admin
 import pandas as pd
 import json
+
+FIRESTORE_COLLECTION_CARDS = 'card-prices'
 
 def main(_):
     q = """
@@ -26,13 +29,12 @@ def main(_):
     """
 
     df = pd.read_gbq(q)
-
-    cred = credentials.ApplicationDefault()
-    firebase_admin.initialize_app(cred, {
-        'projectId': "nifty-beast-realm",
-    })
-
-    FIRESTORE_COLLECTION_CARDS = 'card-prices'
+    if not firebase_admin._apps:
+        cred = credentials.ApplicationDefault()
+        firebase_admin.initialize_app(cred, {
+            'projectId': "nifty-beast-realm",
+        })
+    
     db = firestore.client()
     batch = db.batch()
 
@@ -44,12 +46,13 @@ def main(_):
         for j in range(500):
             k = i*500 + j
             if k < df.shape[0]:
-                card_ref = db.collection(FIRESTORE_COLLECTION_CARDS).document(df.iloc[k]['name'].replace('//','---'))
+                document_id = df.iloc[k]['name'].replace('//','---').replace('_',' ')
+                card_ref = db.collection(FIRESTORE_COLLECTION_CARDS).document()
                 data = json.loads(df[['name','price_season', 'price_season_new','price_season_combined']].iloc[k].to_json())
                 batch.set(card_ref, data)
                 debug.append(k)
 
         # Commit the batch
         batch.commit()
-
+    
     return 'OK'
