@@ -11,12 +11,12 @@ def main(_):
     q = """
     WITH season AS (
     SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE TIMESTAMP('2023-09-01') <= datetime and datetime < TIMESTAMP('2024-01-01') and main_price_usd is not null
+    WHERE TIMESTAMP('2025-09-01') <= datetime and datetime < TIMESTAMP('2026-01-01') and main_price_usd is not null
     GROUP BY name, datetime
     ),
     season_new AS (
     SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season_new FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE TIMESTAMP('2023-09-01') <= datetime and main_price_usd is not null
+    WHERE TIMESTAMP('2026-01-01') <= datetime and main_price_usd is not null
     GROUP BY name, datetime
     )
     SELECT name,
