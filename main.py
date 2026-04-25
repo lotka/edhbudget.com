@@ -131,7 +131,7 @@ def calculate_price_archidekt(data,url):
 
         card_prices = []
         for card in cards:
-            doc_ref = db.collection(u'card-prices-v2').document(safe_doc_id(card))
+            doc_ref = db.collection(u'card-prices').document(safe_doc_id(card))
             doc = doc_ref.get()
             if doc.exists:
                 card_prices.append(doc.to_dict())
