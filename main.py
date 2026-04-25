@@ -163,7 +163,7 @@ def calculate_price_archidekt(data,url):
                 'commander_price' : round(historical['price_season_combined'][historical.name == commander].sum(), 2),
                 'free_cards': int((historical['price_season_combined'] == 0).sum()),
                 'id': data['id'],
-                'modified': str(datetime.datetime.today()),
+                'modified': str(data['updatedAt']),
                 'price_list': flat_price_list,
                 'deckFormat': deckFormat,
                 'deck_price_season': round(historical['price_season_combined'].sum(), 2),
@@ -181,7 +181,7 @@ def calculate_price_archidekt(data,url):
                 'commander_price': 0,
                 'free_cards': 0,
                 'id': data['id'],
-                'modified': str(datetime.datetime.today()),
+                'modified': str(data['updatedAt']),
                 'price_list' : [],
                 'deckFormat' : 'n/a',
                 'deck_price_season': 0.0000000000000001,
@@ -213,6 +213,7 @@ def update_deck(archidekt_id):
         doc_ref = db.collection(FIRESTORE_COLLECTION).document(archidekt_id)
         is_new_deck = not doc_ref.get().exists
         result = calculate_price_archidekt(deck_request.json(),url)
+        print(deck_request.json())
         doc_ref.set(result)
         if is_new_deck:
             notify_new_deck(result)
