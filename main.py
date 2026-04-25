@@ -2,18 +2,24 @@ import flask
 import pandas as pd
 import requests
 import datetime
+import logging
+import os
 from zoneinfo import ZoneInfo
 import firebase_admin
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from google.cloud import bigquery
+from google.cloud import secretmanager
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 from firebase_admin import credentials
 from firebase_admin import firestore
 from flask import request
 import sys
+from functools import lru_cache
 from urllib.parse import urlparse
+import re
+
 
 DEBUG = len(sys.argv) > 1 and sys.argv[1] == 'dev'
 
@@ -37,12 +43,68 @@ firebase_admin.initialize_app(cred, {
 })
 
 db = firestore.client()
+DISCORD_WEBHOOK_SECRET_ID = 'discord-webhook-url'
 
 def remove_nan(x):
     if pd.isnull(x):
         return 'NEW CARD'
     else:
         return x
+
+@lru_cache(maxsize=1)
+def get_discord_webhook_url():
+    project_id = (
+        os.getenv('GOOGLE_CLOUD_PROJECT')
+        or os.getenv('GCP_PROJECT')
+        or firebase_admin.get_app().project_id
+    )
+    secret_name = f'projects/{project_id}/secrets/{DISCORD_WEBHOOK_SECRET_ID}/versions/latest'
+    client = secretmanager.SecretManagerServiceClient()
+    response = client.access_secret_version(request={"name": secret_name})
+    return response.payload.data.decode("UTF-8").strip()
+
+def notify_new_deck(result):
+    try:
+        webhook_url = get_discord_webhook_url()
+    except Exception:
+        logging.exception('Failed to load Discord webhook secret')
+        return
+
+    if not webhook_url:
+        return
+
+    message = (
+        f"New deck added: **{result['name']}** by **{result['owner']}**\n"
+        f"{result['url']}\n"
+        f"Format: `{result['deckFormat']}` | Price: `${result['deck_price_season']}`"
+    )
+
+    try:
+        requests.post(webhook_url, json={"content": message}, timeout=10)
+    except Exception:
+        logging.exception('Failed to send Discord webhook notification')
+
+def safe_doc_id(name: str) -> str:
+    if not isinstance(name, str):
+        name = str(name)
+
+    # Replace slashes first
+    name = name.replace('/', '-')
+
+    # Remove problematic chars
+    name = re.sub(r'[^\w\s\-]', '', name)
+
+    # Collapse whitespace
+    name = re.sub(r'\s+', ' ', name).strip()
+
+    # Replace spaces with underscores
+    name = name.replace(' ', '_')
+
+    if not name or name in {'.', '..'} or re.fullmatch(r'_+', name):
+        # fallback to deterministic hash
+        name = hashlib.md5(name.encode()).hexdigest()
+
+    return name
 
 def calculate_price_archidekt(data,url):
     commander = 'Commander not found'
@@ -69,7 +131,7 @@ def calculate_price_archidekt(data,url):
 
         card_prices = []
         for card in cards:
-            doc_ref = db.collection(u'card-prices').document(card.replace('//','---'))
+            doc_ref = db.collection(u'card-prices-v2').document(safe_doc_id(card))
             doc = doc_ref.get()
             if doc.exists:
                 card_prices.append(doc.to_dict())
@@ -149,8 +211,11 @@ def update_deck(archidekt_id):
         return False
     else:
         doc_ref = db.collection(FIRESTORE_COLLECTION).document(archidekt_id)
+        is_new_deck = not doc_ref.get().exists
         result = calculate_price_archidekt(deck_request.json(),url)
         doc_ref.set(result)
+        if is_new_deck:
+            notify_new_deck(result)
         return result
     
 def parse_url(url):
@@ -273,4 +338,4 @@ def robots_dot_txt():
     return "User-agent: *\nDisallow: /"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=DEBUG)
+    app.run(host="0.0.0.0", port=8081, debug=DEBUG)

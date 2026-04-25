@@ -6,7 +6,7 @@ import pandas as pd
 import json
 import re
 
-FIRESTORE_COLLECTION_CARDS = 'card-prices-v2'
+FIRESTORE_COLLECTION_CARDS = 'card-prices'
 
 import re
 import hashlib
