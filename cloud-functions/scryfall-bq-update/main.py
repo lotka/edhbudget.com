@@ -2,6 +2,8 @@ import numpy as np
 import requests
 from tqdm import tqdm
 import pandas as pd
+import os
+import time
 
 def min_special(a,b):
     if pd.isna(a) and pd.isna(b):
@@ -14,7 +16,8 @@ def min_special(a,b):
         return min(float(a),float(b))
 
 def main(_):
-
+    webhook_url = os.getenv('WEBHOOK',None)
+    start_time = time.time()
     bulk = requests.get('https://api.scryfall.com/bulk-data').json()
     meta = list(filter(lambda x : x['type'] == 'default_cards',bulk['data']))[0]
     today = meta['updated_at']
@@ -59,7 +62,14 @@ def main(_):
         df['main_price_eur'] = df['main_price_eur'].astype(float)
         print('Uploading data..')
         df.to_gbq('magic.scryfall-prices',project_id='nifty-beast-realm',if_exists='append')
+        end_time = time.time()
+
+        if webhook_url:
+            logging_str = f'```Prices processed in {int(end_time - start_time)} second\nTotal cards: {len(df):,}\nUnique cards: {len(df.name.unique()):,}\nUnique sets: {len(df.set_name.unique()):,}```'
+            requests.post(webhook_url, json={"content": logging_str})
     else:
+        if webhook_url:
+            requests.post(webhook_url, json={"content": f"Prices are up to date."})
         print('Nothing to be done')
 
     return 'OK'

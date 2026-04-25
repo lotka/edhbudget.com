@@ -1,4 +1,5 @@
 google-cloud-bigquery
+gunicorn
 Flask
 flask-wtf
 pandas-gbq

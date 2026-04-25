@@ -19,10 +19,8 @@ DEBUG = len(sys.argv) > 1 and sys.argv[1] == 'dev'
 
 if DEBUG:
     FIRESTORE_COLLECTION = u'deck-ids-dev'
-    PORT = 8081
 else:
     FIRESTORE_COLLECTION = u'deck-ids'
-    PORT = 8080
 
 class SubmitForm(FlaskForm):
     url = StringField('url', validators=[DataRequired()])
@@ -275,4 +273,4 @@ def robots_dot_txt():
     return "User-agent: *\nDisallow: /"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=PORT, debug=DEBUG)
+    app.run(host="0.0.0.0", port=8080, debug=DEBUG)

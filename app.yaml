@@ -1,2 +1,3 @@
-runtime: python39
+runtime: python311
 instance_class: F2
+entrypoint: gunicorn -b :$PORT main:app --workers 1 --threads 8
