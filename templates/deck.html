@@ -2,22 +2,6 @@
 
 
 {% block content %}
-<script data-ad-client="ca-pub-1384705583832067" async
-    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-<link href="{{ url_for('static', filename='style20220612-3.css') }}" rel="stylesheet" type="text/css" > 
-<style>
-@media 
-only screen and (max-width: 760px),
-(min-device-width: 768px) and (max-device-width: 1024px)  {
-
-    /*
-    Label the data
-    */
-    td:nth-of-type(1):before { content: "Name"; }
-    td:nth-of-type(2):before { content: "Price"; }
-    td:nth-of-type(3):before { content: "Next Season Price"; }
-}
-    </style>
 <div id="gap"></div>
 <header>
   <!-- <img id="banner" src="https://static1.squarespace.com/static/551a2e0ee4b0bf065e1b3b3f/551a6237e4b02e9aae0cd8be/57d9347dd1758e7b8ab50112/1473889192651/mtgmasterpiecetheaterbanner.jpg?format=1500w"></img> -->
@@ -43,7 +27,7 @@ only screen and (max-width: 760px),
 {% endif %}
 {% endwith %}
 <div class="table-area">
-<table>
+<table class="deck-detail-table">
     <tr>
         <th></th>
         <thead>

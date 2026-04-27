@@ -1,75 +1,105 @@
-import numpy as np
-import requests
-from tqdm import tqdm
-import pandas as pd
 import os
 import time
 
-def min_special(a,b):
+import numpy as np
+import pandas as pd
+import requests
+from tqdm import tqdm
+
+
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT") or "nifty-beast-realm"
+PRICE_TABLE = os.getenv("PRICE_TABLE", "magic.scryfall-prices")
+SCRYFALL_BULK_DATA_URL = "https://api.scryfall.com/bulk-data"
+PRICE_KEYS = ["usd", "usd_foil", "eur", "eur_foil"]
+CARD_KEYS = ["set_name", "name", "id"]
+
+
+def min_special(a, b):
     if pd.isna(a) and pd.isna(b):
         return np.nan
     if pd.isna(a):
         return b
-    elif pd.isna(b):
+    if pd.isna(b):
         return a
-    else:
-        return min(float(a),float(b))
+
+    return min(float(a), float(b))
+
+
+def get_default_cards_metadata():
+    bulk = requests.get(SCRYFALL_BULK_DATA_URL).json()
+    return next(entry for entry in bulk["data"] if entry["type"] == "default_cards")
+
+
+def get_latest_loaded_datetime():
+    return pd.read_gbq(
+        """
+        SELECT MAX(datetime) FROM `nifty-beast-realm.magic.scryfall-prices`
+        """,
+        project_id=PROJECT_ID,
+    ).values[0][0]
+
+
+def card_has_paper_price(card):
+    return any(card["prices"].values()) and "paper" in card["games"]
+
+
+def normalize_scryfall_card(card, datetime):
+    new_entry = {key: card.get(key) for key in CARD_KEYS}
+    prices = card["prices"]
+
+    for key in PRICE_KEYS:
+        new_entry[f"price_{key}"] = float(prices[key]) if prices[key] is not None else np.nan
+
+    new_entry["main_price_usd"] = min_special(prices["usd"], prices["usd_foil"])
+    new_entry["main_price_eur"] = min_special(prices["eur"], prices["eur_foil"])
+    new_entry["datetime"] = datetime
+    return new_entry
+
+
+def build_price_frame(cards, datetime):
+    rows = [
+        normalize_scryfall_card(card, datetime)
+        for card in tqdm(cards)
+        if card_has_paper_price(card)
+    ]
+    df = pd.DataFrame(rows)
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    df["main_price_usd"] = df["main_price_usd"].astype(float)
+    df["main_price_eur"] = df["main_price_eur"].astype(float)
+    return df
+
+
+def post_webhook(webhook_url, content):
+    if webhook_url:
+        requests.post(webhook_url, json={"content": content})
+
 
 def main(_):
-    webhook_url = os.getenv('WEBHOOK',None)
+    webhook_url = os.getenv("WEBHOOK", None)
     start_time = time.time()
-    bulk = requests.get('https://api.scryfall.com/bulk-data').json()
-    meta = list(filter(lambda x : x['type'] == 'default_cards',bulk['data']))[0]
-    today = meta['updated_at']
+    meta = get_default_cards_metadata()
+    latest_scryfall_datetime = meta["updated_at"]
 
-    max_datetime = pd.read_gbq("""
-    SELECT MAX(datetime) FROM `nifty-beast-realm.magic.scryfall-prices`
-    """,project_id='nifty-beast-realm').values[0][0]
+    if pd.to_datetime(latest_scryfall_datetime) <= pd.to_datetime(get_latest_loaded_datetime()):
+        post_webhook(webhook_url, "Prices are up to date.")
+        print("Nothing to be done")
+        return "OK"
 
-    if pd.to_datetime(today) > pd.to_datetime(max_datetime):
-        print('Downloading data...')
-        data = requests.get(meta['download_uri'], stream=True).json()
+    print("Downloading data...")
+    cards = requests.get(meta["download_uri"], stream=True).json()
 
-        new_data = []
-        needed_keys = ['set_name','name','id']
+    print("Processing data...")
+    df = build_price_frame(cards, latest_scryfall_datetime)
 
-        print('Processing data...')
-        for i in tqdm(range(len(data))):
-            new_entry = {}
-            # Copy over the data
-            for k in needed_keys:
-                if k in data[i]:
-                    new_entry[k] = data[i][k]
-                else:
-                    new_entry[k] = None
-            # Expand prices
-            prices = data[i]['prices']
-            for k in ["usd", "usd_foil", "eur", "eur_foil"]:
-                if  prices[k] is not None:
-                    new_entry['price_'+k] = float(prices[k])
-                else:
-                    new_entry['price_'+k] = np.nan
-            new_entry['main_price_usd'] = min_special(prices['usd'],prices['usd_foil'])
-            new_entry['main_price_eur'] = min_special(prices['eur'],prices['eur_foil'])
-            new_entry['datetime'] = today
-            # Remove funny cards
-            if any(prices.values()) and 'paper' in data[i]['games']:
-                new_data.append(new_entry)
-        
-        df = pd.DataFrame(new_data)
-        df['datetime'] = pd.to_datetime(df['datetime'])
-        df['main_price_usd'] = df['main_price_usd'].astype(float)
-        df['main_price_eur'] = df['main_price_eur'].astype(float)
-        print('Uploading data..')
-        df.to_gbq('magic.scryfall-prices',project_id='nifty-beast-realm',if_exists='append')
-        end_time = time.time()
+    print("Uploading data..")
+    df.to_gbq(PRICE_TABLE, project_id=PROJECT_ID, if_exists="append")
 
-        if webhook_url:
-            logging_str = f'```Prices processed in {int(end_time - start_time)} second\nTotal cards: {len(df):,}\nUnique cards: {len(df.name.unique()):,}\nUnique sets: {len(df.set_name.unique()):,}```'
-            requests.post(webhook_url, json={"content": logging_str})
-    else:
-        if webhook_url:
-            requests.post(webhook_url, json={"content": f"Prices are up to date."})
-        print('Nothing to be done')
-
-    return 'OK'
+    elapsed = int(time.time() - start_time)
+    post_webhook(
+        webhook_url,
+        f"```Prices processed in {elapsed} second\n"
+        f"Total cards: {len(df):,}\n"
+        f"Unique cards: {len(df.name.unique()):,}\n"
+        f"Unique sets: {len(df.set_name.unique()):,}```",
+    )
+    return "OK"

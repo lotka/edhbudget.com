@@ -2,28 +2,6 @@
 
 
 {% block content %}
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1384705583832067"
-     crossorigin="anonymous"></script>
-<link href="{{ url_for('static', filename='style20220612-3.css') }}" rel="stylesheet" type="text/css" > 
-<meta name="description" content="Track the prices of your budget edh decks in a stable and easy way.">
-<style>
-  @media 
-only screen and (max-width: 760px),
-(min-device-width: 768px) and (max-device-width: 1024px)  {
-
-/*
-Label the data
-*/
-td:nth-of-type(1):before { content: "Refresh"; }
-td:nth-of-type(2):before { content: "Price"; }
-td:nth-of-type(3):before { content: "Next Season Price"; }
-td:nth-of-type(4):before { content: "Deck Name"; }
-td:nth-of-type(5):before { content: "User"; }
-td:nth-of-type(6):before { content: "Commander"; }
-td:nth-of-type(7):before { content: "Commander Price"; }
-td:nth-of-type(8):before { content: "Last Modified"; }
-}
-</style>
 <div id="gap"></div>
 <header>
 <div class="container">
@@ -73,17 +51,14 @@ The price is also averaged over prices since 11/11/2020.</h2> -->
 <br>
 Deck price includes commander, overall budget is ${{ budget }}.
 
-<h2>Average deck price is {% if average_price > budget %}
-<span style="color:rgb(209, 0, 0); font-weight: bold;">
-  {% else %}
-  <span style="color:rgb(88, 155, 0); font-weight: bold;">
-    {% endif %}
+<h2>Average deck price is
+  <span class="price-status {% if average_price > budget %}price-status--over{% else %}price-status--under{% endif %}">
     ${{ average_price }}
   </span>
 </center>
 
 
-<table>
+<table class="deck-list-table" data-budget="{{ budget }}" data-loading-image="{{ url_for('static', filename='loading.gif') }}">
     <tr>
         <th></th>
         <thead>
@@ -99,8 +74,8 @@ Deck price includes commander, overall budget is ${{ budget }}.
         </thead>
     </tr>
     {% for result in results %}
-    <tr>
-      <td><a href="javascript:update_deck_id({{ result['id'] }});">
+    <tr class="deck-row" data-deck-id="{{ result['id'] }}">
+      <td><a href="#" class="deck-refresh" data-deck-id="{{ result['id'] }}">
         <span id="deck-{{ result['id'] }}-refresh">🔄</span>
       </a></td>
 
@@ -109,13 +84,9 @@ Deck price includes commander, overall budget is ${{ budget }}.
       <td>
         <a href="deck?archidekt_id={{ result['id'] }}">
         <span id="deck-{{ result['id'] }}-deck_price-season">
-          {% if result['deck_price_season'] > budget %}
-          <div style="color:rgb(209, 0, 0); font-weight: bold;">
-          {% else %}
-          <div style="color:rgb(88, 155, 0); font-weight: bold;">
-          {% endif %}
-          ${{ result['deck_price_season'] }}
-        </div>
+          <span class="price-status {% if result['deck_price_season'] > budget %}price-status--over{% else %}price-status--under{% endif %}">
+            ${{ result['deck_price_season'] }}
+          </span>
       </span>
     </a>
     </td>
@@ -129,9 +100,6 @@ Deck price includes commander, overall budget is ${{ budget }}.
   </a>
   </td>
 
-
-
-        <div class='deck-ids' hidden>{{ result['id'] }}</div>
         <td>
           <a href="{{ result['url']}}">
             {{ result['name'] }}
@@ -150,11 +118,7 @@ Deck price includes commander, overall budget is ${{ budget }}.
           <!-- </a> -->
         </td>
         <td>
-          {% if title == 'oathbreaker' %}
-          <a href="https://oathbreaker.edhrec.com/oathbreakers/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
-          {% else %}
-          <a href="https://edhrec.com/commanders/{{ result['commander'].replace(',','').replace(' ','-').lower()}}">
-          {% endif %}
+          <a href="{{ result['commander_url'] }}">
             <span id="deck-{{ result['id'] }}-commander">
               {{ result['commander'] }}
             </span>
@@ -168,7 +132,7 @@ Deck price includes commander, overall budget is ${{ budget }}.
 </table>
 
 <div class="update">
-<a href="javascript:onLoad();">
+<a href="#" class="update-all-decks">
   Update All
 </a>
 </div>
@@ -181,41 +145,5 @@ Deck price includes commander, overall budget is ${{ budget }}.
 
 {% block scripts %}
     {{ super() }}
-    <script>
-
-
-        function update_deck_id(id) {
-            $('#deck-' + id + '-refresh').html('<img src="{{ url_for('static', filename='loading.gif') }}">');
-            $.post('/update_deck_id', {'id' : id}).done(function(response) {
-                const deck_price_season = response['deck_price_season']
-                if (deck_price_season > {{ budget }}) {
-                  $('#deck-' + id + '-deck_price-season').html('<div style="color:red; font-weight: bold;"> $' + response['deck_price_season'] + '</div>')
-                } else {
-                  $('#deck-' + id + '-deck_price-season').html('<div style="color:green; font-weight: bold;"> $' + response['deck_price_season'] + '</div>')
-                }
-                $('#deck-' + id + '-deck_price-season-new').text('$'+response['deck_price_season_new'])
-                $('#deck-' + id + '-commander_price').text(response['commander_price'])
-                $('#deck-' + id + '-modified').text(response['modified'].substr(0,16))
-                $('#deck-' + id + '-refresh').text('🔄');
-            }).fail(function(response) {
-              $('#deck-' + id + '-refresh').text('⚠️');
-              console.log(response)
-            })
-        };
-
-        function sleep(ms) {
-          return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-
-        async function onLoad() {
-          var decks = $('div.deck-ids').toArray();
-          for (i =0; i <decks.length; ++i) {
-            update_deck_id(decks[i].textContent);
-            await sleep(100);
-          }
-        }
-
-            // onLoad();
-    </script>
+    <script src="{{ url_for('static', filename='decks.js') }}"></script>
 {% endblock %}

@@ -1,29 +1,35 @@
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
+import hashlib
+import json
+import os
+
 import firebase_admin
 import pandas as pd
-import json
-import re
+from firebase_admin import credentials, firestore
+from tqdm import tqdm
 
-FIRESTORE_COLLECTION_CARDS = 'card-prices-v2'
 
-import re
-import hashlib
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT") or "nifty-beast-realm"
+FIRESTORE_COLLECTION_CARDS = os.getenv("FIRESTORE_COLLECTION_CARDS", "card-prices-v2")
+PRICE_TABLE = os.getenv("PRICE_TABLE", "nifty-beast-realm.magic.scryfall-prices")
+SEASON_START = os.getenv("SEASON_START", "2026-01-01")
+NEXT_SEASON_START = os.getenv("NEXT_SEASON_START", "2026-04-01")
+BATCH_SIZE = 500
+
 
 def safe_doc_id(name: str) -> str:
     return hashlib.md5(name.encode()).hexdigest()
 
-def main(_):
-    q = """
+
+def build_price_query():
+    return f"""
     WITH season AS (
-    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE TIMESTAMP('2026-01-01') <= datetime and datetime < TIMESTAMP('2026-04-01') and main_price_usd is not null
+    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season FROM `{PRICE_TABLE}`
+    WHERE TIMESTAMP('{SEASON_START}') <= datetime and datetime < TIMESTAMP('{NEXT_SEASON_START}') and main_price_usd is not null
     GROUP BY name, datetime
     ),
     season_new AS (
-    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season_new FROM `nifty-beast-realm.magic.scryfall-prices`
-    WHERE TIMESTAMP('2026-04-01') <= datetime and main_price_usd is not null
+    SELECT name,datetime,min(CAST(main_price_usd as FLOAT64)) as price_season_new FROM `{PRICE_TABLE}`
+    WHERE TIMESTAMP('{NEXT_SEASON_START}') <= datetime and main_price_usd is not null
     GROUP BY name, datetime
     )
     SELECT name,
@@ -35,31 +41,31 @@ def main(_):
     GROUP BY name
     """
 
-    df = pd.read_gbq(q)
+
+def initialize_firestore():
     if not firebase_admin._apps:
         cred = credentials.ApplicationDefault()
-        firebase_admin.initialize_app(cred, {
-            'projectId': "nifty-beast-realm",
-        })
-    
-    db = firestore.client()
+        firebase_admin.initialize_app(cred, {"projectId": PROJECT_ID})
 
-    from tqdm import tqdm
+    return firestore.client()
 
-    debug = []
-    N = round(df.shape[0]/500)+1
-    for i in tqdm(range(N)):
+
+def price_document(row):
+    return json.loads(row[["name", "price_season", "price_season_new", "price_season_combined"]].to_json())
+
+
+def write_prices(db, df):
+    for start in tqdm(range(0, df.shape[0], BATCH_SIZE)):
         batch = db.batch()
-        for j in range(500):
-            k = i*500 + j
-            if k < df.shape[0]:
-                document_id = safe_doc_id(df.iloc[k]['name'])
-                card_ref = db.collection(FIRESTORE_COLLECTION_CARDS).document(document_id)
-                data = json.loads(df[['name','price_season', 'price_season_new','price_season_combined']].iloc[k].to_json())
-                batch.set(card_ref, data)
-                debug.append(k)
+        for _, row in df.iloc[start:start + BATCH_SIZE].iterrows():
+            card_ref = db.collection(FIRESTORE_COLLECTION_CARDS).document(safe_doc_id(row["name"]))
+            batch.set(card_ref, price_document(row))
 
-        # Commit the batch
         batch.commit()
-    
-    return 'OK'
+
+
+def main(_):
+    df = pd.read_gbq(build_price_query(), project_id=PROJECT_ID)
+    db = initialize_firestore()
+    write_prices(db, df)
+    return "OK"
