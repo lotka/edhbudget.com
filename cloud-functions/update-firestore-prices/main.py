@@ -6,32 +6,13 @@ import pandas as pd
 import json
 import re
 
-FIRESTORE_COLLECTION_CARDS = 'card-prices'
+FIRESTORE_COLLECTION_CARDS = 'card-prices-v2'
 
 import re
 import hashlib
 
 def safe_doc_id(name: str) -> str:
-    if not isinstance(name, str):
-        name = str(name)
-
-    # Replace slashes first
-    name = name.replace('/', '-')
-
-    # Remove problematic chars
-    name = re.sub(r'[^\w\s\-]', '', name)
-
-    # Collapse whitespace
-    name = re.sub(r'\s+', ' ', name).strip()
-
-    # Replace spaces with underscores
-    name = name.replace(' ', '_')
-
-    if not name or name in {'.', '..'} or re.fullmatch(r'_+', name):
-        # fallback to deterministic hash
-        name = hashlib.md5(name.encode()).hexdigest()
-
-    return name
+    return hashlib.md5(name.encode()).hexdigest()
 
 def main(_):
     q = """

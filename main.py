@@ -1,3 +1,5 @@
+import hashlib
+
 import flask
 import pandas as pd
 import requests
@@ -85,30 +87,13 @@ def notify_new_deck(result):
         logging.exception('Failed to send Discord webhook notification')
 
 def safe_doc_id(name: str) -> str:
-    if not isinstance(name, str):
-        name = str(name)
-
-    # Replace slashes first
-    name = name.replace('/', '-')
-
-    # Remove problematic chars
-    name = re.sub(r'[^\w\s\-]', '', name)
-
-    # Collapse whitespace
-    name = re.sub(r'\s+', ' ', name).strip()
-
-    # Replace spaces with underscores
-    name = name.replace(' ', '_')
-
-    if not name or name in {'.', '..'} or re.fullmatch(r'_+', name):
-        # fallback to deterministic hash
-        name = hashlib.md5(name.encode()).hexdigest()
-
-    return name
+    return hashlib.md5(name.encode()).hexdigest()
 
 def calculate_price_archidekt(data,url):
     commander = 'Commander not found'
     for card in data['cards']:
+        if card['categories'] is None:
+            continue
         if 'Commander' in card['categories'] and ('Planeswalker' in card['card']['oracleCard']['types'] or 'Creature' in card['card']['oracleCard']['types']):
             commander = card['card']['oracleCard']['name']
 
@@ -122,6 +107,8 @@ def calculate_price_archidekt(data,url):
     cards = []
     if len(data['cards']) > 0:
         for card in data['cards']:
+            if card['categories'] is None:
+                return {'error' : 'Card {} has no categories, failed to add deck'.format(card['card']['oracleCard']['name'])}
             if 'Basic' not in card['card']['oracleCard']['superTypes'] and 'Maybeboard' not in card['categories'] and 'Sideboard' not in card['categories']:
                 cards.append(card['card']['oracleCard']['name'])
             where_in_statement = '['
@@ -131,7 +118,7 @@ def calculate_price_archidekt(data,url):
 
         card_prices = []
         for card in cards:
-            doc_ref = db.collection(u'card-prices').document(safe_doc_id(card))
+            doc_ref = db.collection(u'card-prices-v2').document(safe_doc_id(card))
             doc = doc_ref.get()
             if doc.exists:
                 card_prices.append(doc.to_dict())
@@ -213,7 +200,9 @@ def update_deck(archidekt_id):
         doc_ref = db.collection(FIRESTORE_COLLECTION).document(archidekt_id)
         is_new_deck = not doc_ref.get().exists
         result = calculate_price_archidekt(deck_request.json(),url)
-        print(deck_request.json())
+        if 'error' in result:
+            flask.flash(result['error'])
+            return False
         doc_ref.set(result)
         if is_new_deck:
             notify_new_deck(result)
