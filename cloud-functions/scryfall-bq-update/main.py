@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT") or "nifty-beast-realm"
-PRICE_TABLE = os.getenv("PRICE_TABLE", "magic.scryfall-prices")
+PRICE_TABLE = os.getenv("PRICE_TABLE", "magic.scryfall-prices-v2")
 SCRYFALL_BULK_DATA_URL = "https://api.scryfall.com/bulk-data"
 PRICE_KEYS = ["usd", "usd_foil", "eur", "eur_foil"]
 CARD_KEYS = ["set_name", "name", "id"]
@@ -33,7 +33,7 @@ def get_default_cards_metadata():
 def get_latest_loaded_datetime():
     return pd.read_gbq(
         """
-        SELECT MAX(datetime) FROM `nifty-beast-realm.magic.scryfall-prices`
+        SELECT MAX(datetime) FROM `nifty-beast-realm.magic.scryfall-prices-v2`
         """,
         project_id=PROJECT_ID,
     ).values[0][0]

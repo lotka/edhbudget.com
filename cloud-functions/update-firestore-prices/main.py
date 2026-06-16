@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT") or "nifty-beast-realm"
 FIRESTORE_COLLECTION_CARDS = os.getenv("FIRESTORE_COLLECTION_CARDS", "card-prices-v2")
-PRICE_TABLE = os.getenv("PRICE_TABLE", "nifty-beast-realm.magic.scryfall-prices")
+PRICE_TABLE = os.getenv("PRICE_TABLE", "nifty-beast-realm.magic.scryfall-prices-v2")
 SEASON_START = os.getenv("SEASON_START", "2026-01-01")
 NEXT_SEASON_START = os.getenv("NEXT_SEASON_START", "2026-04-01")
 BATCH_SIZE = 500
