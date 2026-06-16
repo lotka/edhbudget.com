@@ -27,28 +27,164 @@
 {% endif %}
 {% endwith %}
 <div class="table-area">
-<table class="deck-detail-table">
-    <tr>
-        <th></th>
-        <thead>
-        <th>Card</th>
-        <th>Season Price</th>
-        <th>Next Season Price</th>
-        </thead>
-    </tr>
-    {% for result in results %}
-    <tr>
-        <td><span >{{ result[0] }}</span></td>
-        <td><span>{{ result[1] }}</span></td>
-        <td><span>{{ result[2] }}</span></td>
-    </tr>
-    {% endfor %}
-</table>
+<div class="deck-layout">
+  <div class="card-list-col">
+    <table class="deck-detail-table">
+        <tr>
+            <th></th>
+            <thead>
+            <th>Card</th>
+            <th>Season Price</th>
+            <th>Next Season Price</th>
+            </thead>
+        </tr>
+        {% for result in results %}
+        <tr>
+            <td><a href="#" class="card-history-link" data-name="{{ result[0] }}" data-season="{{ result[1] }}" data-season-new="{{ result[2] }}">{{ result[0] }}</a></td>
+            <td><span>{{ result[1] }}</span></td>
+            <td><span>{{ result[2] }}</span></td>
+        </tr>
+        {% endfor %}
+    </table>
+  </div>
+  <div class="chart-col">
+    <div id="price-chart-area">
+        <h3 id="price-chart-title">Click a card to see its price history</h3>
+        <div class="chart-canvas-wrap"><canvas id="price-chart"></canvas></div>
+    </div>
+  </div>
+</div>
 
 <br><br>
     </div>
+
+<style>
+.deck-layout { display: flex; gap: 24px; align-items: stretch; max-width: 90vw; margin: 0 auto; }
+.card-list-col { flex: 1 1 0; min-width: 0; }
+.card-list-col table.deck-detail-table { width: 100%; }
+.chart-col { flex: 1 1 0; min-width: 0; }
+#price-chart-area { position: sticky; top: 20px; }
+#price-chart-title { font-size: 0.95rem !important; font-weight: 600; margin: 0 0 10px; line-height: 1.3; }
+.chart-canvas-wrap { position: relative; height: 320px; }
+@media (max-width: 800px) {
+    .deck-layout { flex-direction: column; }
+    .chart-col { order: -1; }
+    #price-chart-area { position: static; }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script>
+    (function () {
+        var chart = null;
+        var title = document.getElementById("price-chart-title");
+        var deckId = "{{ archidekt_id }}";
+
+        function renderHistory(titleText, label, history, refs) {
+            title.textContent = titleText;
+
+            var points = history.map(function (row) {
+                return { x: row.day, y: row.usd };
+            });
+
+            var datasets = [{
+                label: label,
+                data: points,
+                borderColor: "#4e9a06",
+                pointRadius: 0,
+                tension: 0.1,
+            }];
+
+            var firstDay = history[0].day;
+            var lastDay = history[history.length - 1].day;
+            (refs || []).forEach(function (ref) {
+                if (!ref.value || ref.value <= 0) { return; }
+                datasets.push({
+                    label: ref.label + " ($" + ref.value.toFixed(2) + ")",
+                    data: [{ x: firstDay, y: ref.value }, { x: lastDay, y: ref.value }],
+                    borderColor: ref.color,
+                    borderDash: [6, 4],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0,
+                });
+            });
+
+            if (chart) {
+                chart.destroy();
+            }
+            chart = new Chart(document.getElementById("price-chart"), {
+                type: "line",
+                data: { datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: "time", time: { unit: "month" } },
+                        y: { ticks: { callback: function (v) { return "$" + v; } } },
+                    },
+                    plugins: { legend: { display: datasets.length > 1 } },
+                },
+            });
+        }
+
+        function loadSeries(url, loadingText, label, titleText, emptyText, refsFromPayload) {
+            title.textContent = loadingText;
+            var started = performance.now();
+            fetch(url)
+                .then(function (resp) { return resp.json(); })
+                .then(function (payload) {
+                    console.log(url + " latency (ms):", Math.round(performance.now() - started));
+                    if (payload.error || !payload.history || !payload.history.length) {
+                        title.textContent = emptyText;
+                        if (chart) { chart.destroy(); chart = null; }
+                        return;
+                    }
+                    renderHistory(titleText, label, payload.history, refsFromPayload ? refsFromPayload(payload) : []);
+                });
+        }
+
+        document.querySelectorAll(".card-history-link").forEach(function (link) {
+            link.addEventListener("click", function (event) {
+                event.preventDefault();
+                var name = link.getAttribute("data-name");
+                var season = parseFloat(link.getAttribute("data-season"));
+                var seasonNew = parseFloat(link.getAttribute("data-season-new"));
+                loadSeries(
+                    "/card_history?name=" + encodeURIComponent(name),
+                    "Loading " + name + "…",
+                    name,
+                    name + " — price (USD)",
+                    "No price history for " + name,
+                    function () {
+                        return [
+                            { label: "Season avg", value: season, color: "#f57900" },
+                            { label: "Next season avg", value: seasonNew, color: "#729fcf" },
+                        ];
+                    }
+                );
+            });
+        });
+
+        if (deckId) {
+            loadSeries(
+                "/deck_history?archidekt_id=" + encodeURIComponent(deckId),
+                "Loading deck total…",
+                "Daily total",
+                "Deck total — daily price (USD)",
+                "No price history for this deck",
+                function (payload) {
+                    return [
+                        { label: "Season avg", value: payload.season, color: "#f57900" },
+                        { label: "Next season avg", value: payload.season_new, color: "#729fcf" },
+                    ];
+                }
+            );
+        }
+    })();
+    </script>
 {% endblock %}

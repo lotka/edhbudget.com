@@ -6,6 +6,7 @@ from archidekt import parse_archidekt_id
 from config import DEBUG, EDH_BUDGET, OATHBREAKER_BUDGET, SECRET_KEY
 from deck_service import get_deck, list_decks, price_rows_for_template, update_deck
 from forms import SubmitForm, UpdateForm
+from price_history import get_card_price_history, get_deck_price_history
 
 
 app = flask.Flask(__name__)
@@ -113,9 +114,34 @@ def deck():
         title="edhbudget",
         results=price_rows_for_template(deck_data),
         deck_name=deck_data["name"],
+        archidekt_id=request.args["archidekt_id"],
         form=form,
         update_form=UpdateForm(),
     )
+
+
+@app.route("/card_history")
+def card_history():
+    name = request.args.get("name")
+    if not name:
+        return flask.jsonify({"error": "missing name"}), 400
+
+    return flask.jsonify({"name": name, "history": get_card_price_history(name)})
+
+
+@app.route("/deck_history")
+def deck_history():
+    deck = get_deck(request.args.get("archidekt_id", ""))
+    if not deck:
+        return flask.jsonify({"error": "deck not found"}), 404
+
+    names = [row[0] for row in price_rows_for_template(deck) if row[0] != "NEW CARD"]
+    return flask.jsonify({
+        "name": deck.get("name", "Deck"),
+        "history": get_deck_price_history(names),
+        "season": deck.get("deck_price_season"),
+        "season_new": deck.get("deck_price_season_new"),
+    })
 
 
 @app.route("/robots.txt")
