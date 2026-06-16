@@ -83,13 +83,22 @@ def run(webhook_url, start_time):
     meta = get_default_cards_metadata()
     latest_scryfall_datetime = meta["updated_at"]
 
-    if pd.to_datetime(latest_scryfall_datetime) <= pd.to_datetime(get_latest_loaded_datetime()):
-        post_webhook(webhook_url, "Prices are up to date.")
-        print("Nothing to be done")
-        return
-
     print("Downloading data...")
     cards = requests.get(meta["download_uri"], headers=SCRYFALL_HEADERS, stream=True).json()
+
+    newest = max(
+        (card for card in cards if card_has_paper_price(card)),
+        key=lambda card: card.get("released_at") or "",
+    )
+
+    if pd.to_datetime(latest_scryfall_datetime) <= pd.to_datetime(get_latest_loaded_datetime()):
+        post_webhook(
+            webhook_url,
+            f"```Nothing to be done, prices are up to date.\n"
+            f"Newest set: {newest['set_name']} ({newest['released_at']})```",
+        )
+        print("Nothing to be done")
+        return
 
     print("Processing data...")
     df = build_price_frame(cards, latest_scryfall_datetime)
@@ -98,10 +107,7 @@ def run(webhook_url, start_time):
     df.to_gbq(PRICE_TABLE, project_id=PROJECT_ID, if_exists="append")
 
     elapsed = int(time.time() - start_time)
-    newest = max(
-        (card for card in cards if card_has_paper_price(card)),
-        key=lambda card: card.get("released_at") or "",
-    )
+
     post_webhook(
         webhook_url,
         f"```Prices processed in {elapsed} second\n"
