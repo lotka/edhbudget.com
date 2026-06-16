@@ -79,6 +79,7 @@ def run(webhook_url, start_time):
 
     elapsed = int(time.time() - start_time)
     batches = (df.shape[0] + BATCH_SIZE - 1) // BATCH_SIZE
+    priciest = df.loc[df["price_season_combined"].idxmax()]
     post_webhook(
         webhook_url,
         f"```Firestore prices updated in {elapsed} second\n"
@@ -86,6 +87,7 @@ def run(webhook_url, start_time):
         f"With current season price: {df['price_season'].notna().sum():,}\n"
         f"With new season price: {df['price_season_new'].notna().sum():,}\n"
         f"Median combined price: ${df['price_season_combined'].median():,.2f}\n"
+        f"Most expensive: {priciest['name']} (${priciest['price_season_combined']:,.2f})\n"
         f"Batches committed: {batches:,}```",
     )
 
