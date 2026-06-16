@@ -87,6 +87,7 @@ def run(webhook_url, start_time):
         f"With current season price: {df['price_season'].notna().sum():,}\n"
         f"With new season price: {df['price_season_new'].notna().sum():,}\n"
         f"Median combined price: ${df['price_season_combined'].median():,.2f}\n"
+        f"Total value of all cards: ${df['price_season_combined'].sum():,.2f}\n"
         f"Most expensive: {priciest['name']} (${priciest['price_season_combined']:,.2f})\n"
         f"Batches committed: {batches:,}```",
     )
