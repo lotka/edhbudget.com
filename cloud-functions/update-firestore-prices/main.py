@@ -3,6 +3,7 @@ import json
 import os
 import time
 import traceback
+from datetime import date
 
 import firebase_admin
 import pandas as pd
@@ -14,9 +15,34 @@ from tqdm import tqdm
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT") or "nifty-beast-realm"
 FIRESTORE_COLLECTION_CARDS = os.getenv("FIRESTORE_COLLECTION_CARDS", "card-prices-v2")
 PRICE_TABLE = os.getenv("PRICE_TABLE", "nifty-beast-realm.magic.scryfall-prices-v2")
-SEASON_START = os.getenv("SEASON_START", "2026-01-01")
-NEXT_SEASON_START = os.getenv("NEXT_SEASON_START", "2026-04-01")
 BATCH_SIZE = 500
+
+
+def season_bounds(today=None):
+    """Return (previous_season_start, current_season_start) as ISO date strings.
+
+    Seasons are 4-month blocks starting Jan 1, May 1, and Sep 1. The query treats
+    [previous_start, current_start) as the completed "season" and everything from
+    current_start onward as the live "next season", so we return the previous and
+    current season starts respectively.
+    """
+    today = today or date.today()
+    if today.month >= 9:
+        current = date(today.year, 9, 1)
+        previous = date(today.year, 5, 1)
+    elif today.month >= 5:
+        current = date(today.year, 5, 1)
+        previous = date(today.year, 1, 1)
+    else:
+        current = date(today.year, 1, 1)
+        previous = date(today.year - 1, 9, 1)
+
+    return previous.isoformat(), current.isoformat()
+
+
+_default_season_start, _default_next_season_start = season_bounds()
+SEASON_START = os.getenv("SEASON_START", _default_season_start)
+NEXT_SEASON_START = os.getenv("NEXT_SEASON_START", _default_next_season_start)
 
 
 def safe_doc_id(name: str) -> str:
@@ -67,9 +93,30 @@ def write_prices(db, df):
         batch.commit()
 
 
-def post_webhook(webhook_url, content):
+def post_webhook(webhook_url, content, allowed_mentions=None):
     if webhook_url:
-        requests.post(webhook_url, json={"content": content})
+        payload = {"content": content}
+        if allowed_mentions is not None:
+            payload["allowed_mentions"] = allowed_mentions
+        requests.post(webhook_url, json=payload)
+
+
+def season_just_rolled_over(today=None):
+    # The job runs daily, so a rollover is exactly the boundary day where the
+    # current season starts on today's date.
+    today = today or date.today()
+    return NEXT_SEASON_START == today.isoformat()
+
+
+def post_season_rollover(webhook_url):
+    role_id = os.getenv("MAGIC_ROLE_ID", None)
+    mention = f"<@&{role_id}> " if role_id else ""
+    post_webhook(
+        webhook_url,
+        f"{mention}:tada: New season rolled over! Now scoring the {NEXT_SEASON_START} season; "
+        f"the {SEASON_START} season is locked in as the previous season price.",
+        allowed_mentions={"parse": ["roles"]},
+    )
 
 
 def run(webhook_url, start_time):
@@ -91,6 +138,9 @@ def run(webhook_url, start_time):
         f"Most expensive: {priciest['name']} (${priciest['price_season_combined']:,.2f})\n"
         f"Batches committed: {batches:,}```",
     )
+
+    if season_just_rolled_over():
+        post_season_rollover(webhook_url)
 
 
 def main(_):
