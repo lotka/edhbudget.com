@@ -1,9 +1,12 @@
 import hashlib
 import json
 import os
+import time
+import traceback
 
 import firebase_admin
 import pandas as pd
+import requests
 from firebase_admin import credentials, firestore
 from tqdm import tqdm
 
@@ -64,8 +67,41 @@ def write_prices(db, df):
         batch.commit()
 
 
-def main(_):
+def post_webhook(webhook_url, content):
+    if webhook_url:
+        requests.post(webhook_url, json={"content": content})
+
+
+def run(webhook_url, start_time):
     df = pd.read_gbq(build_price_query(), project_id=PROJECT_ID)
     db = initialize_firestore()
     write_prices(db, df)
+
+    elapsed = int(time.time() - start_time)
+    batches = (df.shape[0] + BATCH_SIZE - 1) // BATCH_SIZE
+    post_webhook(
+        webhook_url,
+        f"```Firestore prices updated in {elapsed} second\n"
+        f"Total cards written: {len(df):,}\n"
+        f"With current season price: {df['price_season'].notna().sum():,}\n"
+        f"With new season price: {df['price_season_new'].notna().sum():,}\n"
+        f"Median combined price: ${df['price_season_combined'].median():,.2f}\n"
+        f"Batches committed: {batches:,}```",
+    )
+
+
+def main(_):
+    webhook_url = os.getenv("WEBHOOK", None)
+    start_time = time.time()
+    try:
+        run(webhook_url, start_time)
+    except Exception:
+        user_id = os.getenv("DISCORD_USER_ID", None)
+        mention = f"<@{user_id}> " if user_id else ""
+        post_webhook(
+            webhook_url,
+            f"{mention}update-firestore-prices failed :rotating_light:\n"
+            f"```{traceback.format_exc()[-1500:]}```",
+        )
+        raise
     return "OK"

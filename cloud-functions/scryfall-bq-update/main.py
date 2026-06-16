@@ -1,5 +1,6 @@
 import os
 import time
+import traceback
 
 import numpy as np
 import pandas as pd
@@ -10,6 +11,10 @@ from tqdm import tqdm
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT") or "nifty-beast-realm"
 PRICE_TABLE = os.getenv("PRICE_TABLE", "magic.scryfall-prices-v2")
 SCRYFALL_BULK_DATA_URL = "https://api.scryfall.com/bulk-data"
+SCRYFALL_HEADERS = {
+    "User-Agent": "https://github.com/lotka/edhbudget.com",
+    "Accept": "application/json",
+}
 PRICE_KEYS = ["usd", "usd_foil", "eur", "eur_foil"]
 CARD_KEYS = ["set_name", "name", "id"]
 
@@ -26,7 +31,7 @@ def min_special(a, b):
 
 
 def get_default_cards_metadata():
-    bulk = requests.get(SCRYFALL_BULK_DATA_URL).json()
+    bulk = requests.get(SCRYFALL_BULK_DATA_URL, headers=SCRYFALL_HEADERS).json()
     return next(entry for entry in bulk["data"] if entry["type"] == "default_cards")
 
 
@@ -74,19 +79,17 @@ def post_webhook(webhook_url, content):
         requests.post(webhook_url, json={"content": content})
 
 
-def main(_):
-    webhook_url = os.getenv("WEBHOOK", None)
-    start_time = time.time()
+def run(webhook_url, start_time):
     meta = get_default_cards_metadata()
     latest_scryfall_datetime = meta["updated_at"]
 
     if pd.to_datetime(latest_scryfall_datetime) <= pd.to_datetime(get_latest_loaded_datetime()):
         post_webhook(webhook_url, "Prices are up to date.")
         print("Nothing to be done")
-        return "OK"
+        return
 
     print("Downloading data...")
-    cards = requests.get(meta["download_uri"], stream=True).json()
+    cards = requests.get(meta["download_uri"], headers=SCRYFALL_HEADERS, stream=True).json()
 
     print("Processing data...")
     df = build_price_frame(cards, latest_scryfall_datetime)
@@ -102,4 +105,20 @@ def main(_):
         f"Unique cards: {len(df.name.unique()):,}\n"
         f"Unique sets: {len(df.set_name.unique()):,}```",
     )
+
+
+def main(_):
+    webhook_url = os.getenv("WEBHOOK", None)
+    start_time = time.time()
+    try:
+        run(webhook_url, start_time)
+    except Exception:
+        user_id = os.getenv("DISCORD_USER_ID", None)
+        mention = f"<@{user_id}> " if user_id else ""
+        post_webhook(
+            webhook_url,
+            f"{mention}scryfall-bq-update failed :rotating_light:\n"
+            f"```{traceback.format_exc()[-1500:]}```",
+        )
+        raise
     return "OK"
