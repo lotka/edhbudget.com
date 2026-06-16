@@ -98,12 +98,17 @@ def run(webhook_url, start_time):
     df.to_gbq(PRICE_TABLE, project_id=PROJECT_ID, if_exists="append")
 
     elapsed = int(time.time() - start_time)
+    newest = max(
+        (card for card in cards if card_has_paper_price(card)),
+        key=lambda card: card.get("released_at") or "",
+    )
     post_webhook(
         webhook_url,
         f"```Prices processed in {elapsed} second\n"
         f"Total cards: {len(df):,}\n"
         f"Unique cards: {len(df.name.unique()):,}\n"
-        f"Unique sets: {len(df.set_name.unique()):,}```",
+        f"Unique sets: {len(df.set_name.unique()):,}\n"
+        f"Newest set: {newest['set_name']} ({newest['released_at']})```",
     )
 
 
